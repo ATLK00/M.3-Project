@@ -586,7 +586,9 @@ socket.on("client:kicked", () => {
 // ---------------- Instrument lookup (mirrors server.js INSTRUMENTS) ----------------
 const INSTRUMENTS_BY_ID = {
   drum_kit: { th: "กลองชุด", category: "percussion" },
-  maracas: { th: "มาราคัส", category: "percussion" },
+  maracas: { th: ",มาริมบา", category: "percussion" },
+  snare: { th: ",สแนร์", category: "percussion" },
+  bassdrum: { th: ",เบสดรัม", category: "percussion" },
   xylophone: { th: "ระนาดเอก", category: "percussion" },
   cymbal: { th: "ฉาบ", category: "percussion" },
   guitar: { th: "กีตาร์", category: "strings" },
@@ -594,9 +596,13 @@ const INSTRUMENTS_BY_ID = {
   harp: { th: "ฮาร์ป", category: "strings" },
   cello: { th: "เชลโล", category: "strings" },
   trumpet: { th: "ทรัมเป็ต", category: "brass" },
+  frenchoen: { th: "เฟรนช์ฮอร์น", category: "brass" },
   trombone: { th: "ทรอมโบน", category: "brass" },
   saxophone: { th: "แซกโซโฟน", category: "woodwind" },
-  flute: { th: "ขลุ่ย", category: "woodwind" },
+  clarinet: { th: "คลาริเน็ต", category: "woodwind" },
+  flute: { th: "ฟลุต", category: "woodwind" },
   piano: { th: "เปียโน", category: "keyboard" },
-  accordion: { th: "หีบเพลง", category: "keyboard" },
+  melodion: { th: "เมโลเดียน", category: "keyboard" },
+  keyboard: { th: "คีย์บอร์ด", category: "keyboard" },
+  organ: { th: "ออร์แกน", category: "keyboard" },
 };
