@@ -665,11 +665,23 @@ io.on("connection", (socket) => {
     team.itemsUsedCount += 1;
 
     if (itemType === "swap") {
-      const hiddenIdx = targetTeam.board
-        .map((c, i) => (c.state === "hidden" ? i : -1))
-        .filter((i) => i !== -1);
-      if (hiddenIdx.length >= 2) {
-        const [a, b] = shuffle(hiddenIdx);
+      // IMPORTANT: only swap within the same `kind` (name<->name or
+      // category<->category). Swapping across kinds used to let a "name"
+      // card and a "category" card trade instrumentId — which could leave
+      // two cards showing the exact same instrument name (a visible dupe)
+      // and unbalance how many of each family exist among name-cards vs
+      // category-cards, occasionally making the board unsolvable. A
+      // same-kind swap is a pure permutation, so the set of names on the
+      // board and the set of categories on the board never changes —
+      // it just scrambles which specific card shows which one.
+      const hiddenByKind = { name: [], category: [] };
+      targetTeam.board.forEach((c, i) => {
+        if (c.state === "hidden") hiddenByKind[c.kind].push(i);
+      });
+      const swappableKinds = ["name", "category"].filter((k) => hiddenByKind[k].length >= 2);
+      if (swappableKinds.length > 0) {
+        const kind = swappableKinds[Math.floor(Math.random() * swappableKinds.length)];
+        const [a, b] = shuffle(hiddenByKind[kind]);
         const tmp = targetTeam.board[a].instrumentId;
         targetTeam.board[a].instrumentId = targetTeam.board[b].instrumentId;
         targetTeam.board[b].instrumentId = tmp;
@@ -684,14 +696,24 @@ io.on("connection", (socket) => {
         durationMs: FREEZE_DURATION_MS,
       });
     } else if (itemType === "peek") {
-      // Self-help item: briefly reveal your own hidden cards' identities
-      // without changing their real state (still costs a real flip to
-      // officially claim a pair).
-      io.to(`${pin}:${team.id}`).emit("game:peek", {
-        teamId: team.id,
-        durationMs: PEEK_DURATION_MS,
-        cards: team.board.map((c) => ({ instrumentId: c.instrumentId, kind: c.kind, state: c.state })),
-      });
+      // Self-help item: briefly reveal ONE of your own random hidden
+      // cards (not the whole board — that would trivialize the round)
+      // without changing its real state; still costs a real flip to
+      // officially claim a pair.
+      const hiddenIdx = team.board
+        .map((c, i) => (c.state === "hidden" && !team.pendingFlip.includes(i) ? i : -1))
+        .filter((i) => i !== -1);
+      if (hiddenIdx.length > 0) {
+        const pickIdx = hiddenIdx[Math.floor(Math.random() * hiddenIdx.length)];
+        const card = team.board[pickIdx];
+        io.to(`${pin}:${team.id}`).emit("game:peek", {
+          teamId: team.id,
+          durationMs: PEEK_DURATION_MS,
+          cardIndex: pickIdx,
+          instrumentId: card.instrumentId,
+          kind: card.kind,
+        });
+      }
     }
 
     io.to(pin).emit("game:itemUsed", {
