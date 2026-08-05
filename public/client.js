@@ -583,9 +583,9 @@ socket.on("client:kicked", () => {
 // ---------------- Instrument lookup (mirrors server.js INSTRUMENTS) ----------------
 const INSTRUMENTS_BY_ID = {
   drum_kit: { th: "กลองชุด", category: "percussion" },
-  maracas: { th: ",มาริมบา", category: "percussion" },
-  snare: { th: ",สแนร์", category: "percussion" },
-  bassdrum: { th: ",เบสดรัม", category: "percussion" },
+  maracas: { th: "มาริมบา", category: "percussion" },
+  snare: { th: "สแนร์", category: "percussion" },
+  bassdrum: { th: "เบสดรัม", category: "percussion" },
   xylophone: { th: "ระนาดเอก", category: "percussion" },
   cymbal: { th: "ฉาบ", category: "percussion" },
   guitar: { th: "กีตาร์", category: "strings" },
