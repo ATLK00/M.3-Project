@@ -583,7 +583,6 @@ socket.on("client:kicked", () => {
   setTimeout(() => window.location.reload(), 1500);
 });
 
-
 // ---------------- Instrument lookup (mirrors server.js INSTRUMENTS) ----------------
 const INSTRUMENTS_BY_ID = {
   drum_kit: { th: "กลองชุด", category: "percussion" },
