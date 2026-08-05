@@ -31,29 +31,35 @@ app.use(express.static(path.join(__dirname, "public")));
 // the same entry: one shows the instrument name, the other shows its
 // family/category name (e.g. "กลองชุด" <-> "เครื่องกระทบ"). This teaches
 // instrument-family classification instead of simple picture memory.
-const INSTRUMENTS = [
-  { id: "drum_kit", th: "กลองชุด", category: "percussion" },
-  { id: "maracas", th: "มาราคัส", category: "percussion" },
-  { id: "xylophone", th: "ระนาดเอก", category: "percussion" },
-  { id: "cymbal", th: "ฉาบ", category: "percussion" },
-  { id: "guitar", th: "กีตาร์", category: "strings" },
-  { id: "violin", th: "ไวโอลิน", category: "strings" },
-  { id: "harp", th: "ฮาร์ป", category: "strings" },
-  { id: "cello", th: "เชลโล", category: "strings" },
-  { id: "trumpet", th: "ทรัมเป็ต", category: "brass" },
-  { id: "trombone", th: "ทรอมโบน", category: "brass" },
-  { id: "saxophone", th: "แซกโซโฟน", category: "woodwind" },
-  { id: "flute", th: "ขลุ่ย", category: "woodwind" },
-  { id: "piano", th: "เปียโน", category: "keyboard" },
-  { id: "accordion", th: "หีบเพลง", category: "keyboard" },
-];
+const INSTRUMENTS_BY_ID = {
+  drum_kit: { th: "กลองชุด", category: "percussion" },
+  maracas: { th: "มาริมบา", category: "percussion" },
+  snare: { th: "สแนร์", category: "percussion" },
+  bassdrum: { th: "เบสดรัม", category: "percussion" },
+  xylophone: { th: "ระนาดเอก", category: "percussion" },
+  cymbal: { th: "ฉาบ", category: "percussion" },
+  guitar: { th: "กีตาร์", category: "strings" },
+  violin: { th: "ไวโอลิน", category: "strings" },
+  harp: { th: "ฮาร์ป", category: "strings" },
+  cello: { th: "เชลโล", category: "strings" },
+  trumpet: { th: "ทรัมเป็ต", category: "brass" },
+  frenchoen: { th: "เฟรนช์ฮอร์น", category: "brass" },
+  trombone: { th: "ทรอมโบน", category: "brass" },
+  saxophone: { th: "แซกโซโฟน", category: "woodwind" },
+  clarinet: { th: "คลาริเน็ต", category: "woodwind" },
+  flute: { th: "ฟลุต", category: "woodwind" },
+  piano: { th: "เปียโน", category: "keyboard" },
+  melodion: { th: "เมโลเดียน", category: "keyboard" },
+  keyboard: { th: "คีย์บอร์ด", category: "keyboard" },
+  organ: { th: "ออร์แกน", category: "keyboard" },
+};
 
 const CATEGORY_LABEL = {
   percussion: "เครื่องกระทบ",
   strings: "เครื่องสาย",
   brass: "เครื่องเป่าลมทองเหลือง",
   woodwind: "เครื่องเป่าลมไม้",
-  keyboard: "เครื่องคีย์บอร์ด",
+  keyboard: "เครื่องลิ่มนิ้ว",
 };
 
 const TEAM_COLORS = [
