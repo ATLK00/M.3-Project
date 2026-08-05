@@ -33,7 +33,9 @@ app.use(express.static(path.join(__dirname, "public")));
 // instrument-family classification instead of simple picture memory.
 const INSTRUMENTS = [
   { id: "drum_kit", th: "กลองชุด", category: "percussion" },
-  { id: "maracas", th: "มาราคัส", category: "percussion" },
+  { id: "marimba", th: "มาริมบา", category: "percussion" },
+  { id: "snare", th: "สแนร์", category: "percussion" },
+  { id: "bassdrum", th: "เบสดรัม", category: "percussion" },
   { id: "xylophone", th: "ระนาดเอก", category: "percussion" },
   { id: "cymbal", th: "ฉาบ", category: "percussion" },
   { id: "guitar", th: "กีตาร์", category: "strings" },
@@ -41,11 +43,15 @@ const INSTRUMENTS = [
   { id: "harp", th: "ฮาร์ป", category: "strings" },
   { id: "cello", th: "เชลโล", category: "strings" },
   { id: "trumpet", th: "ทรัมเป็ต", category: "brass" },
+  { id: "frenchoen", th: "เฟรนช์ฮอร์น", category: "brass" },
   { id: "trombone", th: "ทรอมโบน", category: "brass" },
   { id: "saxophone", th: "แซกโซโฟน", category: "woodwind" },
-  { id: "flute", th: "ขลุ่ย", category: "woodwind" },
+  { id: "clarinet", th: "คลาริเน็ต", category: "woodwind" },
+  { id: "flute", th: "ฟลุต", category: "woodwind" },
   { id: "piano", th: "เปียโน", category: "keyboard" },
-  { id: "accordion", th: "หีบเพลง", category: "keyboard" },
+  { id: "melodion", th: "เมโลเดียน", category: "keyboard" },
+  { id: "keyboard", th: "คีย์บอร์ด", category: "keyboard" },
+  { id: "organ", th: "ออร์แกน", category: "keyboard" },
 ];
 
 const CATEGORY_LABEL = {
@@ -53,7 +59,7 @@ const CATEGORY_LABEL = {
   strings: "เครื่องสาย",
   brass: "เครื่องเป่าลมทองเหลือง",
   woodwind: "เครื่องเป่าลมไม้",
-  keyboard: "เครื่องคีย์บอร์ด",
+  keyboard: "เครื่องลิ่มนิ้ว",
 };
 
 const TEAM_COLORS = [
