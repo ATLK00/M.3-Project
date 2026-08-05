@@ -18,7 +18,7 @@
 const socket = io();
 
 const ITEM_COSTS = { swap: 1, freeze: 2, peek: 1 };
-const ITEM_LABELS = { swap: "สลับตำแหน่งไพ่", freeze: "แช่แข็ง 3 วิ", peek: "ส่องทั้งกระดาน 3 วิ" };
+const ITEM_LABELS = { swap: "สลับตำแหน่งไพ่", freeze: "แช่แข็ง 3 วิ", peek: "ส่องไพ่ 2.5 วิ" };
 
 function getOrCreatePlayerId() {
   let id = sessionStorage.getItem("mmg_playerId");
@@ -283,21 +283,14 @@ socket.on("game:started", ({ endsAt, teams }) => {
 });
 
 // ---------------- Board rendering ----------------
-// The server now sends `th` (display name) and `category` directly on
-// every revealed/matched card (see sanitizeBoard in server.js), so the
-// client never has to look instrument info up in a second, separately
-// maintained copy of the instrument list. That duplicate lookup used to
-// be the cause of the intermittent "blank card" bug: whenever the two
-// hand-kept lists drifted out of sync, whichever instrument was missing
-// from the client's copy would render as an empty card the moment it was
-// randomly drawn onto the board.
 function cardContent(card) {
-  const meta = CATEGORY_META[card.category];
-  if (!meta) return { text: "", sub: "", color: "#999", icon: "" };
+  const inst = INSTRUMENTS_BY_ID[card.instrumentId];
+  if (!inst) return { text: "", sub: "", color: "#999", icon: "" };
+  const meta = CATEGORY_META[inst.category];
   if (card.kind === "category") {
-    return { text: meta.label, sub: "ประเภท", color: meta.color, icon: categoryIconHtml(card.category) };
+    return { text: meta.label, sub: "ประเภท", color: meta.color, icon: categoryIconHtml(inst.category) };
   }
-  return { text: card.th || "", sub: "ชื่อเครื่องดนตรี", color: meta.color, icon: categoryIconHtml(card.category) };
+  return { text: inst.th, sub: "ชื่อเครื่องดนตรี", color: meta.color, icon: categoryIconHtml(inst.category) };
 }
 
 function renderBoard() {
@@ -394,7 +387,7 @@ socket.on("game:voteRequest", ({ teamId, cards }) => {
   const pairEl = document.getElementById("vote-pair");
   pairEl.innerHTML = cards
     .map((c) => {
-      const info = cardContent(c);
+      const info = cardContent({ instrumentId: c.instrumentId, kind: c.kind, state: "revealed" });
       return `<div class="mini-card" style="color:${info.color}"><div class="mini-icon">${info.icon}</div><div class="mini-text">${info.text}</div></div>`;
     })
     .join("");
@@ -458,39 +451,11 @@ function refreshItemButtonAvailability() {
   });
 }
 
-// Using an item now always goes through a confirm step first. Tokens are
-// only spent on the server when the player actually presses "ยืนยัน" —
-// pressing "ยกเลิก" (or dismissing) never talks to the server at all, so
-// no token is ever deducted for a cancelled use.
-let pendingItemType = null;
-
-function requestUseItem(itemType) {
+function useItem(itemType) {
   if (itemType !== "peek" && !selectedTarget) {
     toast("เลือกทีมเป้าหมายก่อน");
     return;
   }
-  pendingItemType = itemType;
-  const cost = ITEM_COSTS[itemType];
-  const targetTeam = itemType !== "peek" ? state.teams.find((t) => t.id === selectedTarget) : null;
-
-  document.getElementById("item-confirm-title").textContent = `ใช้ "${ITEM_LABELS[itemType]}" ใช่ไหม?`;
-  document.getElementById("item-confirm-detail").textContent = targetTeam
-    ? `ใช้ใส่ทีม "${targetTeam.name}" · หัก ${cost} โทเค็น`
-    : `ใช้กับทีมของคุณเอง · หัก ${cost} โทเค็น`;
-  document.getElementById("item-confirm-overlay").classList.remove("hidden");
-}
-
-function cancelUseItem() {
-  pendingItemType = null;
-  document.getElementById("item-confirm-overlay").classList.add("hidden");
-}
-
-function confirmUseItem() {
-  const itemType = pendingItemType;
-  document.getElementById("item-confirm-overlay").classList.add("hidden");
-  if (!itemType) return;
-  pendingItemType = null;
-
   socket.emit("client:useItem", { itemType, targetTeamId: selectedTarget }, (res) => {
     if (!res.ok) {
       toast(res.error || "ใช้ไอเทมไม่ได้");
@@ -504,12 +469,9 @@ function confirmUseItem() {
     startCooldownUI(res.cooldownUntil);
   });
 }
-
-document.getElementById("btn-item-swap").addEventListener("click", () => requestUseItem("swap"));
-document.getElementById("btn-item-freeze").addEventListener("click", () => requestUseItem("freeze"));
-document.getElementById("btn-item-peek").addEventListener("click", () => requestUseItem("peek"));
-document.getElementById("btn-item-cancel").addEventListener("click", cancelUseItem);
-document.getElementById("btn-item-confirm").addEventListener("click", confirmUseItem);
+document.getElementById("btn-item-swap").addEventListener("click", () => useItem("swap"));
+document.getElementById("btn-item-freeze").addEventListener("click", () => useItem("freeze"));
+document.getElementById("btn-item-peek").addEventListener("click", () => useItem("peek"));
 
 function startCooldownUI(until) {
   const fill = document.getElementById("cooldown-fill");
@@ -537,31 +499,25 @@ function startCooldownUI(until) {
 socket.on("game:itemUsed", ({ fromTeam, itemType, targetTeamId }) => {
   if (fromTeam === state.teamId) return;
   const fromT = state.teams.find((t) => t.id === fromTeam);
-  const fromName = fromT ? fromT.name : "ทีมอื่น";
-  const label = ITEM_LABELS[itemType] || itemType;
   if (targetTeamId === state.teamId) {
-    // It was used directly on us — the more urgent, specific message.
-    toast(`${fromName} ใช้ไอเทม "${label}" ใส่ทีมคุณ!`);
-  } else {
-    // Otherwise still let every team know an item was used, and by whom,
-    // even if it doesn't affect them directly.
-    toast(`${fromName} ใช้ไอเทม "${label}"`);
+    toast(`${fromT ? fromT.name : "ทีมอื่น"} ใช้ไอเทม "${ITEM_LABELS[itemType] || itemType}" ใส่ทีมคุณ!`);
   }
 });
 
-// ---------------- Peek (self item — briefly reveals the WHOLE board) ----------------
+// ---------------- Peek (self item) ----------------
 socket.on("game:peek", ({ teamId, cards, durationMs }) => {
   if (teamId !== state.teamId) return;
-  toast("ส่องไพ่ทั้งกระดาน! จำตำแหน่งไว้ให้ดี");
+  toast("ส่องไพ่! จำตำแหน่งไว้ให้ดี");
   SFX.item();
   const board = document.getElementById("board");
-  (cards || []).forEach((c) => {
-    const el = board.children[c.cardIndex];
-    const realCard = state.board[c.cardIndex];
-    if (!el || !realCard || realCard.state !== "hidden") return;
+  Array.from(board.children).forEach((el, idx) => {
+    const realCard = state.board[idx];
+    if (!realCard || realCard.state !== "hidden") return;
+    const peekInfo = cards[idx];
+    if (!peekInfo) return;
     el.classList.add("flipped", "peek");
-    const info = cardContent(c);
-    el.querySelector(".card-front").innerHTML = `<div class="icon-wrap" style="color:${info.color}">${info.icon}</div><div class="card-text">${info.text}</div><div class="label">${info.sub}</div>`;
+    const c = cardContent(peekInfo);
+    el.querySelector(".card-front").innerHTML = `<div class="icon-wrap" style="color:${c.color}">${c.icon}</div><div class="card-text">${c.text}</div><div class="label">${c.sub}</div>`;
   });
   setTimeout(renderBoard, durationMs);
 });
