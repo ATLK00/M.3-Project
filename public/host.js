@@ -194,10 +194,13 @@ socket.on("game:cardsSwapped", ({ teamId, fromTeam }) => {
   toast(`${from ? from.name : "ทีมหนึ่ง"} สลับไพ่ของ ${t ? t.name : "ทีมเป้าหมาย"}`);
 });
 
+const HOST_ITEM_LABELS = { swap: "สลับตำแหน่งไพ่", freeze: "แช่แข็ง 3 วิ", peek: "ส่องทั้งกระดาน 3 วิ" };
+
 socket.on("game:itemUsed", (payload) => {
   const t = findDashTeam(payload.fromTeam);
   if (t) t.itemsUsedCount = (t.itemsUsedCount || 0) + 1;
   renderDashboard();
+  toast(`${t ? t.name : "ทีมหนึ่ง"} ใช้ไอเทม "${HOST_ITEM_LABELS[payload.itemType] || payload.itemType}"`);
 });
 
 socket.on("game:teamFinished", ({ teamId }) => {
