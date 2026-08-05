@@ -227,6 +227,26 @@ function createRoom(settings) {
   return room;
 }
 
+const INSTRUMENT_BY_ID = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, i]));
+
+/**
+ * Two cards count as a correct match when they show matching CONTENT —
+ * one "name" card + one "category" card whose family is the same — not
+ * only when they happen to be the exact pair the board originally
+ * generated. So "กีตาร์" (name) correctly matches ANY "เครื่องสาย"
+ * (category) card on the board, not just the one card ID that was
+ * secretly paired with it at shuffle time. This matches what a student
+ * can actually see and reason about.
+ */
+function cardsMatch(c1, c2) {
+  if (!c1 || !c2 || c1.kind === c2.kind) return false; // need one name + one category
+  const nameCard = c1.kind === "name" ? c1 : c2;
+  const categoryCard = c1.kind === "category" ? c1 : c2;
+  const nameInst = INSTRUMENT_BY_ID[nameCard.instrumentId];
+  const catInst = INSTRUMENT_BY_ID[categoryCard.instrumentId];
+  return !!nameInst && !!catInst && nameInst.category === catInst.category;
+}
+
 function resolvePendingFlip(pin, team, confirmed) {
   const room = rooms.get(pin);
   if (!room || team.pendingFlip.length < 2) return;
@@ -235,7 +255,7 @@ function resolvePendingFlip(pin, team, confirmed) {
   const c2 = team.board[i2];
   let matched = false;
 
-  if (confirmed && c1.instrumentId === c2.instrumentId) {
+  if (confirmed && cardsMatch(c1, c2)) {
     c1.state = "matched";
     c2.state = "matched";
     team.matchedPairs += 1;
