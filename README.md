@@ -1,10 +1,12 @@
 # จับคู่เครื่องดนตรี — Music Card Matching Game
 
-> **อัปเดตล่าสุด:** (1) ทีมที่มีผู้เล่นคนเดียวจะได้ทุกบทบาทอัตโนมัติ (เปิดไพ่ + ยืนยันเอง + ใช้ไอเทมได้เอง)
+> **อัปเดตล่าสุด (รอบใหม่):** ธีมมืด/ม่วงสไตล์แอปเกมการ์ด, ระบบเครื่องดนตรีย้ายไปเป็นไฟล์ `data/instruments.json` ที่แก้ผ่านหน้า `/admin.html` ได้เลย (เพิ่ม/แก้/ลบ/ใส่รูปได้), ทั้งฝั่งเกมและแอดมินอ่านข้อมูลจากที่เดียวกันแล้ว (แก้บั๊ก "การ์ดขึ้นว่าง" ที่ต้นตอ), มีหน้าโหลดข้อมูลก่อนเข้าเกมเสมอ, รองรับ PWA เพิ่มไอคอนหน้าจอโฮมได้ทั้ง iOS/Android, และมีปุ่ม "สร้างห้องใหม่" เล็กๆ ใต้ช่อง PIN หน้าแรกแล้ว — รายละเอียดในหัวข้อ 9-11 ด้านล่าง.
+>
+> **อัปเดตก่อนหน้า:** (1) ทีมที่มีผู้เล่นคนเดียวจะได้ทุกบทบาทอัตโนมัติ (เปิดไพ่ + ยืนยันเอง + ใช้ไอเทมได้เอง)
 > (2) การ์ดเปลี่ยนจาก "รูปเหมือนกัน 2 ใบ" เป็น "ชื่อเครื่องดนตรี ↔ ประเภทเครื่องดนตรี" (เช่น กลองชุด ↔ เครื่องกระทบ)
 > (3) ไม่มีอิโมจิในหน้าเว็บเลย ใช้ไอคอนเส้น (`public/icons.js`) แทนทั้งหมด
 > (4) หน้าหัวห้องมีการเฉลยผลแบบระทึกใจ (เผยจากอันดับสุดท้ายไล่ขึ้นมา) + คอนเฟตตี้ตอนประกาศทีมชนะ + สถิติพลาด/ใช้ไอเทม
-> (5) มีปุ่มย้อนกลับ/ออกจากห้องอยู่มุมซ้ายบนแทบทุกหน้า และปุ่ม "เล่นใหม่" ในหน้าสรุปผล — ดูรายละเอียดในหัวข้อ 5–7 ด้านล่าง
+> (5) มีปุ่มย้อนกลับ/ออกจากห้องอยู่มุมซ้ายบนแทบทุกหน้า และปุ่ม "เล่นใหม่" ในหน้าสรุปผล
 
 Real-time, mobile-first, Kahoot-style multiplayer memory game for teaching
 music instruments to ม.3 students. Built with **Node.js + Express + Socket.io**.
@@ -150,16 +152,101 @@ The host sets a shared countdown (`endsAt`, in minutes). The game also ends
 early the instant **every** team has matched all of its pairs. Final ranking
 sorts by `matchedPairs` (desc), then by completion time (asc) for teams that
 finished — shown on both the student results screen and the host's
-dashboard, with medal emoji for the top three.
+dashboard, with colored rank badges (gold/silver/bronze) for the top three.
 
 ## 8. Notes & suggested extensions
 
 - All state is in-memory; restarting `server.js` clears any in-progress game.
   For a multi-classroom deployment behind a load balancer you'd want to move
   `rooms` into Redis and swap `setInterval` timers for a shared clock.
-- The 12 built-in instruments (`server.js` → `INSTRUMENTS`) cover the max
-  difficulty (12 pairs). Add more entries there (and mirror them in
-  `INSTRUMENTS_BY_ID` in `client.js`) if you want an even harder mode.
 - Sound effects are synthesized with the Web Audio API so the game runs with
   zero extra asset files — swap in real `<audio>` clips in `sound.js` if you
   have licensed sound effects you'd like to use instead.
+
+## 9. Managing instruments from `/admin.html` (no code editing needed)
+
+Instruments now live in `data/instruments.json` — the server, the student
+page, and the host page all read from the **same** file (via
+`GET /api/instruments`), instead of each having their own hand-copied list.
+That was the actual root cause of the old "sometimes a card shows up blank"
+bug: the client's copy could drift out of sync with the server's. Now there's
+exactly one source of truth.
+
+**To add/edit/delete an instrument (with a photo, optionally):**
+
+1. Open `https://<your-domain>/admin.html`
+2. Enter the admin passcode (see "Setting the admin passcode" below)
+3. Fill in the name + family (ตระกูล), optionally attach a photo, save
+4. It's live immediately — no restart needed, no deploy needed
+
+Deleting requires at least 4 instruments to remain (so the hardest 12-pair
+mode still has enough content — 12-14+ instruments is a comfortable amount).
+
+**Setting the admin passcode:** set an `ADMIN_KEY` environment variable
+before starting the server (Render → your service → **Environment** → add
+`ADMIN_KEY` = something only you know). If unset, it falls back to
+`changeme` — fine for local testing, **not** fine for a public deploy.
+Reading the instrument list (`GET /api/instruments`) is intentionally public
+(the game itself needs it); only add/edit/delete/image-upload require the
+passcode.
+
+Uploaded photos are saved to `public/assets/instruments/<id>.<ext>` as plain
+files — back that folder up (or the whole `data/` + `public/assets/instruments/`
+pair) if you want to keep your custom set across a redeploy that wipes the
+filesystem (e.g. Render's free tier resets on redeploy since it has no
+persistent disk on the free plan).
+
+## 10. Loading order (fixing the "blank card" class of bug at the root)
+
+Both `client.js` and `host.js` used to hardcode their own copy of the
+instrument list. Two problems came from that:
+
+- If the two copies ever drifted (a typo, a missed edit), a card could
+  render with no matching data → blank face.
+- The `swap` item used to be able to trade identities between a "name" card
+  and a "category" card, which could also produce duplicate-looking cards.
+
+Both are fixed now: the client fetches `/api/instruments` **once, the
+moment the page loads** (`instrumentsReady` promise in `client.js`), and the
+game screen will not render a board until that fetch has actually resolved
+— see `showGameWhenReady()`. In the extremely unlikely case the fetch is
+still pending when `game:started` arrives, the player briefly sees a
+"กำลังโหลดข้อมูลเกม…" loading screen instead of a half-built board. The
+`swap` item was also fixed to only swap cards of the same kind (name↔name or
+category↔category), so it can no longer create a mismatched pair.
+
+## 11. PWA / "Add to Home Screen"
+
+Both `index.html` (student) and `host.html` (host) are installable:
+
+- **iOS Safari:** open the page → Share button → **Add to Home Screen**.
+  Each page has its own `apple-mobile-web-app-title`, so the two icons on
+  the home screen are labeled distinctly ("จับคู่ดนตรี" vs "หัวห้อง-ดนตรี").
+- **Android Chrome:** you'll typically get an automatic "Install app" /
+  "Add to Home screen" prompt, or find it in the browser's ⋮ menu.
+
+Implementation notes if you touch this later:
+- `public/manifest.json` (student) and `public/manifest-host.json` (host)
+  are separate manifests with different `start_url`s, so installing from
+  either page always reopens the right one.
+- `public/icons/` has the generated app icons (192/512/apple-touch/favicon).
+  Regenerate them with your own art if you want to rebrand — same
+  filenames, same sizes, and everything else keeps working.
+- `public/sw.js` is a **network-first** service worker on purpose — since
+  this is a live multiplayer game, it always prefers a fresh network
+  response and only serves a cached copy if the request fails outright
+  (e.g. a brief connection drop). It never intercepts `/socket.io/*` or
+  `/api/*` requests, so it can't ever serve stale game data.
+
+## 12. Theme
+
+The color system lives entirely in CSS custom properties at the top of
+`public/style.css` (`:root { ... }`) — dark indigo background, violet
+primary accent, white "playing card" faces for contrast. To reskin, edit
+those variables; component styles below reference them rather than hardcoding
+colors, with the exception of a few surfaces that are deliberately always
+white regardless of theme (the flipped card face, the vote pop-up, the
+winner banner) — those use `--ink-dark` / `--ink-dark-soft` for their text
+specifically so it stays readable no matter what the page-level `--ink` is
+set to.
+

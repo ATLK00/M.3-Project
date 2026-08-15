@@ -10,6 +10,7 @@
  */
 
 const path = require("path");
+const fs = require("fs");
 const crypto = require("crypto");
 const express = require("express");
 const { createServer } = require("http");
@@ -22,45 +23,149 @@ const io = new Server(httpServer, {
 });
 
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json({ limit: "8mb" })); // 8mb headroom for base64 instrument images
 
 // ---------------------------------------------------------------
-// Constants
+// Instrument data — loaded from data/instruments.json so anyone can add
+// new instruments (with pictures) from the /admin.html dev page without
+// touching code. This is also the SINGLE SOURCE OF TRUTH shared with the
+// client/host pages via GET /api/instruments — previously the client had
+// its own hand-copied instrument list, and any drift between the two
+// copies was the root cause of the "sometimes blank card" bug reports.
 // ---------------------------------------------------------------
 
-// Each entry is one "instrument". A board pair is built from TWO cards for
-// the same entry: one shows the instrument name, the other shows its
-// family/category name (e.g. "กลองชุด" <-> "เครื่องกระทบ"). This teaches
-// instrument-family classification instead of simple picture memory.
-const INSTRUMENTS = [
-  { id: "drum_kit", th: "กลองชุด", category: "percussion" },
-  { id: "marimba", th: "มาริมบา", category: "percussion" },
-  { id: "snare", th: "สแนร์", category: "percussion" },
-  { id: "bassdrum", th: "เบสดรัม", category: "percussion" },
-  { id: "xylophone", th: "ระนาดเอก", category: "percussion" },
-  { id: "cymbal", th: "ฉาบ", category: "percussion" },
-  { id: "guitar", th: "กีตาร์", category: "strings" },
-  { id: "violin", th: "ไวโอลิน", category: "strings" },
-  { id: "harp", th: "ฮาร์ป", category: "strings" },
-  { id: "cello", th: "เชลโล", category: "strings" },
-  { id: "trumpet", th: "ทรัมเป็ต", category: "brass" },
-  { id: "frenchoen", th: "เฟรนช์ฮอร์น", category: "brass" },
-  { id: "trombone", th: "ทรอมโบน", category: "brass" },
-  { id: "saxophone", th: "แซกโซโฟน", category: "woodwind" },
-  { id: "clarinet", th: "คลาริเน็ต", category: "woodwind" },
-  { id: "flute", th: "ฟลุต", category: "woodwind" },
-  { id: "piano", th: "เปียโน", category: "keyboard" },
-  { id: "melodion", th: "เมโลเดียน", category: "keyboard" },
-  { id: "keyboard", th: "คีย์บอร์ด", category: "keyboard" },
-  { id: "organ", th: "ออร์แกน", category: "keyboard" },
-];
+const INSTRUMENTS_FILE = path.join(__dirname, "data", "instruments.json");
+const INSTRUMENT_IMAGE_DIR = path.join(__dirname, "public", "assets", "instruments");
+fs.mkdirSync(INSTRUMENT_IMAGE_DIR, { recursive: true });
 
 const CATEGORY_LABEL = {
   percussion: "เครื่องกระทบ",
   strings: "เครื่องสาย",
   brass: "เครื่องเป่าลมทองเหลือง",
   woodwind: "เครื่องเป่าลมไม้",
-  keyboard: "เครื่องลิ่มนิ้ว",
+  keyboard: "เครื่องคีย์บอร์ด",
 };
+
+/** @type {{id:string, th:string, category:string, image:string|null}[]} */
+let INSTRUMENTS = [];
+/** @type {Record<string, {id:string, th:string, category:string, image:string|null}>} */
+let INSTRUMENT_BY_ID = {};
+
+function loadInstruments() {
+  try {
+    const raw = fs.readFileSync(INSTRUMENTS_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("empty instrument list");
+    INSTRUMENTS = parsed;
+  } catch (err) {
+    console.error("Failed to load data/instruments.json, using built-in fallback list.", err.message);
+    INSTRUMENTS = [
+      { id: "drum_kit", th: "กลองชุด", category: "percussion", image: null },
+      { id: "guitar", th: "กีตาร์", category: "strings", image: null },
+      { id: "trumpet", th: "ทรัมเป็ต", category: "brass", image: null },
+      { id: "flute", th: "ขลุ่ย", category: "woodwind", image: null },
+      { id: "piano", th: "เปียโน", category: "keyboard", image: null },
+      { id: "maracas", th: "มาราคัส", category: "percussion", image: null },
+    ];
+  }
+  INSTRUMENT_BY_ID = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, i]));
+}
+function saveInstruments() {
+  fs.writeFileSync(INSTRUMENTS_FILE, JSON.stringify(INSTRUMENTS, null, 2), "utf8");
+  INSTRUMENT_BY_ID = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, i]));
+}
+loadInstruments();
+
+function slugify(text) {
+  return String(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9ก-๙]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 40);
+}
+
+// Simple shared-passcode gate for the /admin.html dev page's write
+// endpoints (list/read is public — students seeing instrument names isn't
+// sensitive; only add/edit/delete/image-upload need the key). Set your
+// own via the ADMIN_KEY environment variable before deploying; this
+// fallback is only for local testing.
+const ADMIN_KEY = process.env.ADMIN_KEY || "changeme";
+function requireAdmin(req, res, next) {
+  if (req.get("x-admin-key") !== ADMIN_KEY) {
+    return res.status(401).json({ ok: false, error: "รหัสผ่านผู้ดูแลไม่ถูกต้อง" });
+  }
+  next();
+}
+
+// ---------------------------------------------------------------
+// Instrument admin API (used by /admin.html)
+// ---------------------------------------------------------------
+
+app.get("/api/instruments", (req, res) => {
+  res.json({ ok: true, instruments: INSTRUMENTS, categories: CATEGORY_LABEL });
+});
+
+app.get("/api/admin/check", requireAdmin, (req, res) => {
+  res.json({ ok: true });
+});
+
+app.post("/api/instruments", requireAdmin, (req, res) => {
+  const { th, category, image } = req.body || {};
+  if (!th || !CATEGORY_LABEL[category]) {
+    return res.status(400).json({ ok: false, error: "ต้องระบุชื่อและประเภทที่ถูกต้อง" });
+  }
+  let id = slugify(th) || "inst-" + Date.now();
+  while (INSTRUMENT_BY_ID[id]) id = id + "-" + Math.floor(Math.random() * 1000);
+
+  let imagePath = null;
+  if (image && typeof image === "string" && image.startsWith("data:image/")) {
+    imagePath = saveInstrumentImage(id, image);
+  }
+
+  INSTRUMENTS.push({ id, th, category, image: imagePath });
+  saveInstruments();
+  res.json({ ok: true, instrument: INSTRUMENT_BY_ID[id] });
+});
+
+app.put("/api/instruments/:id", requireAdmin, (req, res) => {
+  const inst = INSTRUMENT_BY_ID[req.params.id];
+  if (!inst) return res.status(404).json({ ok: false, error: "ไม่พบเครื่องดนตรีนี้" });
+  const { th, category, image } = req.body || {};
+  if (th) inst.th = th;
+  if (category && CATEGORY_LABEL[category]) inst.category = category;
+  if (image && typeof image === "string" && image.startsWith("data:image/")) {
+    inst.image = saveInstrumentImage(inst.id, image);
+  } else if (image === null) {
+    inst.image = null;
+  }
+  saveInstruments();
+  res.json({ ok: true, instrument: inst });
+});
+
+app.delete("/api/instruments/:id", requireAdmin, (req, res) => {
+  const idx = INSTRUMENTS.findIndex((i) => i.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ ok: false, error: "ไม่พบเครื่องดนตรีนี้" });
+  if (INSTRUMENTS.length <= 4) {
+    return res.status(400).json({ ok: false, error: "ต้องมีเครื่องดนตรีอย่างน้อย 4 ชิ้นเพื่อให้เกมเล่นได้" });
+  }
+  INSTRUMENTS.splice(idx, 1);
+  saveInstruments();
+  res.json({ ok: true });
+});
+
+function saveInstrumentImage(id, dataUrl) {
+  const match = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/.exec(dataUrl);
+  if (!match) return null;
+  const ext = match[1] === "jpeg" ? "jpg" : match[1];
+  const buffer = Buffer.from(match[2], "base64");
+  const filename = `${id}.${ext}`;
+  fs.writeFileSync(path.join(INSTRUMENT_IMAGE_DIR, filename), buffer);
+  return `assets/instruments/${filename}`;
+}
+
+// ---------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------
 
 const TEAM_COLORS = [
   "#FF6B9D", "#4D96FF", "#6BCB77", "#FFB84C",
@@ -69,7 +174,7 @@ const TEAM_COLORS = [
 
 const ITEM_COOLDOWN_MS = 5000; // short anti-double-click cooldown
 const FREEZE_DURATION_MS = 3000;
-const PEEK_DURATION_MS = 3000; // peek now reveals the WHOLE board briefly
+const PEEK_DURATION_MS = 3000;
 const WRONG_MATCH_LOCK_MS = 2500; // penalty: opener can't flip right after a wrong guess
 const RECONNECT_GRACE_MS = 45000; // keep a disconnected player's slot this long
 const ROOM_CLEANUP_DELAY_MS = 10 * 60 * 1000; // sweep finished rooms after 10 min
@@ -96,7 +201,8 @@ function shuffle(arr) {
 }
 
 function makeBoard(pairCount) {
-  const pool = shuffle(INSTRUMENTS).slice(0, pairCount);
+  const count = Math.min(pairCount, INSTRUMENTS.length);
+  const pool = shuffle(INSTRUMENTS).slice(0, count);
   const cards = pool.flatMap((inst) => [
     { instrumentId: inst.id, kind: "name", state: "hidden" },
     { instrumentId: inst.id, kind: "category", state: "hidden" },
@@ -133,28 +239,13 @@ function getVotingConfirmers(team) {
   );
 }
 
-/** Board view that hides the identity of hidden cards from everyone.
- *  Sends the display text/category straight from the server's INSTRUMENTS
- *  table so the client never needs its own hardcoded copy to look names
- *  up from — that duplicate copy was the source of the intermittent
- *  "blank card" bug (any drift between the two lists, e.g. after editing
- *  one file's instrument list but not the other, silently produced a
- *  card with no name/icon whenever that particular instrument was
- *  randomly drawn onto the board). */
+/** Board view that hides the identity of hidden cards from everyone. */
 function sanitizeBoard(team) {
-  return team.board.map((c) => {
-    if (c.state === "hidden") {
-      return { state: "hidden", instrumentId: null, kind: null, th: null, category: null };
-    }
-    const inst = INSTRUMENT_BY_ID[c.instrumentId];
-    return {
-      state: c.state,
-      instrumentId: c.instrumentId,
-      kind: c.kind,
-      th: inst ? inst.th : null,
-      category: inst ? inst.category : null,
-    };
-  });
+  return team.board.map((c) => ({
+    state: c.state,
+    instrumentId: c.state === "hidden" ? null : c.instrumentId,
+    kind: c.state === "hidden" ? null : c.kind,
+  }));
 }
 
 function publicPlayer(p) {
@@ -248,8 +339,6 @@ function createRoom(settings) {
   return room;
 }
 
-const INSTRUMENT_BY_ID = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, i]));
-
 /**
  * Two cards count as a correct match when they show matching CONTENT —
  * one "name" card + one "category" card whose family is the same — not
@@ -285,10 +374,14 @@ function resolvePendingFlip(pin, team, confirmed) {
   } else {
     c1.state = "hidden";
     c2.state = "hidden";
-    team.wrongAttempts += 1;
-    // Penalty: lock the opener out for a moment after a wrong guess so
-    // rushed/careless clicking has a real cost.
-    team.wrongLockUntil = Date.now() + WRONG_MATCH_LOCK_MS;
+    // Penalty only applies to a genuine wrong guess (confirmed "yes" but
+    // the cards didn't actually match). Clicking "ยกเลิก" to reject a
+    // clearly-bad pair before committing is the team catching their own
+    // mistake — that should NOT cost them a lockout or count as a miss.
+    if (confirmed) {
+      team.wrongAttempts += 1;
+      team.wrongLockUntil = Date.now() + WRONG_MATCH_LOCK_MS;
+    }
   }
 
   team.pendingFlip = [];
@@ -614,15 +707,10 @@ io.on("connection", (socket) => {
         io.to(pin).emit("game:voteRequest", {
           teamId: team.id,
           cardIndexes: team.pendingFlip,
-          cards: team.pendingFlip.map((i) => {
-            const inst = INSTRUMENT_BY_ID[team.board[i].instrumentId];
-            return {
-              instrumentId: team.board[i].instrumentId,
-              kind: team.board[i].kind,
-              th: inst ? inst.th : null,
-              category: inst ? inst.category : null,
-            };
-          }),
+          cards: team.pendingFlip.map((i) => ({
+            instrumentId: team.board[i].instrumentId,
+            kind: team.board[i].kind,
+          })),
         });
       }
     }
@@ -712,7 +800,11 @@ io.on("connection", (socket) => {
         targetTeam.board[a].instrumentId = targetTeam.board[b].instrumentId;
         targetTeam.board[b].instrumentId = tmp;
       }
-      io.to(pin).emit("game:cardsSwapped", { teamId: targetTeam.id, fromTeam: team.id });
+      io.to(pin).emit("game:cardsSwapped", {
+        teamId: targetTeam.id,
+        fromTeam: team.id,
+        board: sanitizeBoard(targetTeam),
+      });
     } else if (itemType === "freeze") {
       targetTeam.frozenUntil = now + FREEZE_DURATION_MS;
       io.to(pin).emit("game:teamFrozen", {
@@ -722,28 +814,24 @@ io.on("connection", (socket) => {
         durationMs: FREEZE_DURATION_MS,
       });
     } else if (itemType === "peek") {
-      // Self-help item: briefly reveal ALL of your own hidden cards at
-      // once (not just one) without changing their real state; still
-      // costs a real flip to officially claim a pair.
+      // Self-help item: briefly reveal exactly ONE random hidden card (not
+      // the whole board — revealing everything at once both trivializes
+      // the round and causes a jarring "every card flips at once" visual
+      // glitch). Doesn't change any real card state.
       const hiddenIdx = team.board
         .map((c, i) => (c.state === "hidden" && !team.pendingFlip.includes(i) ? i : -1))
         .filter((i) => i !== -1);
-      const cards = hiddenIdx.map((i) => {
-        const card = team.board[i];
-        const inst = INSTRUMENT_BY_ID[card.instrumentId];
-        return {
-          cardIndex: i,
+      if (hiddenIdx.length > 0) {
+        const pickIdx = hiddenIdx[Math.floor(Math.random() * hiddenIdx.length)];
+        const card = team.board[pickIdx];
+        io.to(`${pin}:${team.id}`).emit("game:peek", {
+          teamId: team.id,
+          durationMs: PEEK_DURATION_MS,
+          cardIndex: pickIdx,
           instrumentId: card.instrumentId,
           kind: card.kind,
-          th: inst ? inst.th : null,
-          category: inst ? inst.category : null,
-        };
-      });
-      io.to(`${pin}:${team.id}`).emit("game:peek", {
-        teamId: team.id,
-        durationMs: PEEK_DURATION_MS,
-        cards,
-      });
+        });
+      }
     }
 
     io.to(pin).emit("game:itemUsed", {
