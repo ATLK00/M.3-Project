@@ -118,7 +118,6 @@ function leaveSession() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  initDvdLayer();
   document.querySelectorAll(".back-btn").forEach((b) =>
     b.addEventListener("click", () => {
       leaveSession();
@@ -227,23 +226,33 @@ document.getElementById("btn-name").addEventListener("click", () => {
   });
 });
 
-// ---------------- 3. Team ----------------
+// ---------------- 3. Team (choose a seat at the table) ----------------
 function renderTeamGrid() {
   const grid = document.getElementById("team-grid");
   grid.innerHTML = "";
-  state.teams.forEach((t) => {
+  const n = state.teams.length;
+  state.teams.forEach((t, i) => {
     const full = t.count >= t.maxPerTeam;
+    const { xPct, yPct } = seatPosition(i, n);
     const btn = document.createElement("button");
-    btn.className = "choice-card" + (full ? " disabled" : "");
+    btn.className = "team-seat-btn";
     btn.disabled = full;
+    btn.style.left = xPct + "%";
+    btn.style.top = yPct + "%";
+    btn.style.setProperty("--seat-color", t.color);
     btn.innerHTML = `
-      <span class="team-dot" style="background:${t.color}"></span>
-      <b>${t.name}</b>
-      <span class="count">${t.count}/${t.maxPerTeam} คน${full ? " (เต็ม)" : ""}</span>
+      <div class="seat-avatar" style="background:${t.color}">${initials(t.name)}</div>
+      <div class="seat-name">${t.name}</div>
+      <div class="seat-count">${t.count}/${t.maxPerTeam} คน${full ? " · เต็ม" : ""}</div>
     `;
     btn.addEventListener("click", () => chooseTeam(t.id));
     grid.appendChild(btn);
   });
+}
+
+function initials(name) {
+  const clean = String(name || "").trim();
+  return clean.slice(0, 2).toUpperCase() || "?";
 }
 
 function chooseTeam(teamId) {

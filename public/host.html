@@ -18,7 +18,6 @@
 </head>
 <body>
 
-<div id="dvd-layer" class="dvd-layer"></div>
 <div id="freeze-overlay" class="freeze-overlay hidden"></div>
 <div id="confetti-layer" class="confetti-layer"></div>
 <div id="toast" class="toast"></div>
@@ -89,14 +88,17 @@
 <!-- ============ 2. LOBBY ============ -->
 <section id="screen-lobby" class="screen hidden">
   <button class="back-btn"></button>
-  <div class="glass-card xwide">
+  <div class="game-shell">
     <div class="pin-display">
       <div class="pin-label">รหัส PIN เข้าห้อง</div>
       <div class="pin-value" id="lobby-pin">------</div>
-      <p class="small-note">ให้นักเรียนเข้า URL ของหน้าเว็บผู้เล่น แล้วใส่รหัสนี้</p>
+      <p class="small-note">ให้นักเรียนเข้า URL ของหน้าเว็บผู้เล่น แล้วใส่รหัสนี้ แล้วเลือกที่นั่งรอบโต๊ะ</p>
     </div>
-    <div id="roster-grid" class="roster-grid"></div>
-    <div class="row" style="justify-content:center; margin-top:8px;">
+    <div class="game-table-wrap">
+      <div class="game-table-felt"></div>
+      <div id="roster-grid" class="team-seats"></div>
+    </div>
+    <div class="row" style="justify-content:center; margin-top:4px;">
       <button id="btn-start" class="btn btn-primary" style="min-width:220px;">เริ่มเกม</button>
     </div>
   </div>
@@ -137,6 +139,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="icons.js"></script>
 <script src="faces.js"></script>
+<script src="table.js"></script>
 <script src="sound.js"></script>
 <script src="host.js"></script>
 <script>

@@ -38,7 +38,6 @@ function toast(msg) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  initDvdLayer();
   document.querySelectorAll(".back-btn").forEach((b) =>
     b.addEventListener("click", () => {
       leaveHostSession();
@@ -110,22 +109,35 @@ const ROLE_LABEL = { opener: "เปิดไพ่", confirmer: "ยืนย�
 
 function renderLobby(lobby) {
   state.lastLobby = lobby;
+  const pinEl = document.getElementById("lobby-pin");
+  if (pinEl) pinEl.textContent = lobby.pin;
+
   const grid = document.getElementById("roster-grid");
   grid.innerHTML = "";
-  lobby.teams.forEach((t) => {
-    const box = document.createElement("div");
-    box.className = "roster-team";
-    box.style.borderTopColor = t.color;
+  const n = lobby.teams.length || 1;
+
+  lobby.teams.forEach((t, i) => {
+    const { xPct, yPct } = seatPosition(i, n);
     const playersHtml = t.players.length
       ? t.players
-          .map(
-            (p) =>
-              `<div class="roster-player"><span>${escapeHtml(p.name || "ผู้เล่น")}${p.connected === false ? " (หลุดการเชื่อมต่อ)" : ""}</span><span class="role-tag">${p.role ? ROLE_LABEL[p.role] : "ยังไม่เลือก"}</span></div>`
-          )
+          .map((p) => {
+            const offline = p.connected === false ? " (หลุด)" : "";
+            const roleTxt = p.role ? ROLE_LABEL[p.role] : "ยังไม่เลือก";
+            return `<span class="player-chip${!p.role ? " no-role" : ""}">${escapeHtml(p.name || "ผู้เล่น")}${offline} · ${roleTxt}</span>`;
+          })
           .join("")
-      : `<p class="small-note">ยังไม่มีผู้เล่น</p>`;
-    box.innerHTML = `<h4><span class="team-dot" style="background:${t.color}"></span>${t.name} (${t.players.length}/${t.maxPerTeam})</h4>${playersHtml}`;
-    grid.appendChild(box);
+      : `<span class="player-chip no-role">ยังไม่มีผู้เล่น</span>`;
+
+    const seat = document.createElement("div");
+    seat.className = "lobby-seat";
+    seat.style.left = xPct + "%";
+    seat.style.top = yPct + "%";
+    seat.innerHTML = `
+      <div class="seat-avatar" style="background:${t.color}">${initials(t.name)}</div>
+      <div class="seat-name">${escapeHtml(t.name)} (${t.players.length}/${t.maxPerTeam})</div>
+      <div class="seat-players">${playersHtml}</div>
+    `;
+    grid.appendChild(seat);
   });
 }
 
@@ -159,13 +171,9 @@ function renderDashboard() {
   const wrap = document.getElementById("host-team-grid");
   wrap.innerHTML = "";
   const n = dashboardTeams.length || 1;
-  const rx = 44; // ellipse radius, % of the table wrap
-  const ry = 40;
 
   dashboardTeams.forEach((t, i) => {
-    const angle = (2 * Math.PI * i) / n - Math.PI / 2; // start at top, go clockwise
-    const x = 50 + rx * Math.cos(angle);
-    const y = 50 + ry * Math.sin(angle);
+    const { xPct, yPct } = seatPosition(i, n);
 
     const pct = Math.round((t.matchedPairs / t.pairCount) * 100);
     const frozen = t.frozenUntil && t.frozenUntil > Date.now();
@@ -173,8 +181,9 @@ function renderDashboard() {
 
     const seat = document.createElement("div");
     seat.className = "team-seat" + (finished ? " seat-finished" : "");
-    seat.style.left = x + "%";
-    seat.style.top = y + "%";
+    seat.dataset.teamId = t.id;
+    seat.style.left = xPct + "%";
+    seat.style.top = yPct + "%";
     seat.style.setProperty("--seat-color", t.color);
     seat.innerHTML = `
       <div class="seat-avatar" style="background:${t.color}">${initials(t.name)}</div>
@@ -195,6 +204,13 @@ function renderDashboard() {
 function initials(name) {
   const clean = String(name || "").trim();
   return clean.slice(0, 2).toUpperCase() || "?";
+}
+
+const ITEM_FLY_ICON = { swap: "swap", freeze: "freeze", peek: "eye" };
+function animateItemFly(fromTeamId, targetTeamId, itemType) {
+  const fromEl = document.querySelector(`.team-seat[data-team-id="${fromTeamId}"]`);
+  const toEl = document.querySelector(`.team-seat[data-team-id="${targetTeamId}"]`);
+  flyItemAnimation(fromEl, toEl, ITEM_FLY_ICON[itemType] || "bolt", "#e9def7");
 }
 
 function findDashTeam(id) {
@@ -232,6 +248,7 @@ socket.on("game:itemUsed", (payload) => {
   const t = findDashTeam(payload.fromTeam);
   if (t) t.itemsUsedCount = (t.itemsUsedCount || 0) + 1;
   renderDashboard();
+  animateItemFly(payload.fromTeam, payload.targetTeamId, payload.itemType);
   const label = HOST_ITEM_LABELS[payload.itemType] || payload.itemType;
   if (payload.itemType === "peek") {
     const msg = `${t ? t.name : "ทีม"} ใช้ไอเทม "${label}"`;

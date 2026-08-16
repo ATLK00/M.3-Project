@@ -18,7 +18,6 @@
 </head>
 <body>
 
-<div id="dvd-layer" class="dvd-layer"></div>
 <div id="freeze-overlay" class="freeze-overlay hidden"></div>
 <div id="toast" class="toast"></div>
 <div id="rotate-prompt" class="rotate-prompt">
@@ -54,9 +53,12 @@
 <!-- ============ 3. CHOOSE TEAM ============ -->
 <section id="screen-team" class="screen hidden">
   <button class="back-btn"></button>
-  <div class="glass-card">
-    <h1 class="title-xl">เลือกทีมของคุณ</h1>
-    <div id="team-grid" class="choice-grid"></div>
+  <div class="game-shell">
+    <h1 class="title-xl">เลือกที่นั่งของคุณ</h1>
+    <div class="game-table-wrap">
+      <div class="game-table-felt"></div>
+      <div id="team-grid" class="team-seats"></div>
+    </div>
   </div>
 </section>
 
@@ -161,6 +163,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="icons.js"></script>
 <script src="faces.js"></script>
+<script src="table.js"></script>
 <script src="sound.js"></script>
 <script src="client.js"></script>
 <script>
