@@ -153,21 +153,48 @@ socket.on("game:started", ({ teams }) => {
 });
 
 function renderDashboard() {
-  const grid = document.getElementById("host-team-grid");
-  grid.innerHTML = "";
-  dashboardTeams.forEach((t) => {
-    const box = document.createElement("div");
-    box.className = "roster-team";
-    box.style.borderTopColor = t.color;
+  const pinEl = document.getElementById("table-pin");
+  if (pinEl) pinEl.textContent = state.pin || "------";
+
+  const wrap = document.getElementById("host-team-grid");
+  wrap.innerHTML = "";
+  const n = dashboardTeams.length || 1;
+  const rx = 44; // ellipse radius, % of the table wrap
+  const ry = 40;
+
+  dashboardTeams.forEach((t, i) => {
+    const angle = (2 * Math.PI * i) / n - Math.PI / 2; // start at top, go clockwise
+    const x = 50 + rx * Math.cos(angle);
+    const y = 50 + ry * Math.sin(angle);
+
     const pct = Math.round((t.matchedPairs / t.pairCount) * 100);
     const frozen = t.frozenUntil && t.frozenUntil > Date.now();
-    box.innerHTML = `
-      <h4><span class="team-dot" style="background:${t.color}"></span>${t.name} ${frozen ? '<span class="frozen-tag">แช่แข็ง</span>' : ""}</h4>
-      <div class="bar-wrap" style="margin-bottom:6px;"><div class="bar" style="width:${pct}%; background:${t.color};"></div></div>
-      <p class="small-note">${t.matchedPairs}/${t.pairCount} คู่ · พลาด ${t.wrongAttempts} · ไอเทม ${t.itemsUsedCount} ${t.finishedAt ? "· เสร็จแล้ว" : ""}</p>
+    const finished = !!t.finishedAt;
+
+    const seat = document.createElement("div");
+    seat.className = "team-seat" + (finished ? " seat-finished" : "");
+    seat.style.left = x + "%";
+    seat.style.top = y + "%";
+    seat.style.setProperty("--seat-color", t.color);
+    seat.innerHTML = `
+      <div class="seat-avatar" style="background:${t.color}">${initials(t.name)}</div>
+      <div class="seat-info">
+        <div class="seat-name">${escapeHtml(t.name)}${frozen ? ' <span class="frozen-tag">แช่แข็ง</span>' : ""}</div>
+        <div class="seat-bar"><div class="seat-bar-fill" style="width:${pct}%;background:${t.color}"></div></div>
+        <div class="seat-stats">
+          <span>${t.matchedPairs}/${t.pairCount} คู่</span>
+          <span>· พลาด ${t.wrongAttempts}</span>
+          <span class="seat-chip">${iconHtml("coin", "#ffd76b")}${t.tokens ?? 0}</span>
+        </div>
+      </div>
     `;
-    grid.appendChild(box);
+    wrap.appendChild(seat);
   });
+}
+
+function initials(name) {
+  const clean = String(name || "").trim();
+  return clean.slice(0, 2).toUpperCase() || "?";
 }
 
 function findDashTeam(id) {

@@ -22,6 +22,11 @@
 <div id="freeze-overlay" class="freeze-overlay hidden"></div>
 <div id="confetti-layer" class="confetti-layer"></div>
 <div id="toast" class="toast"></div>
+<div id="rotate-prompt" class="rotate-prompt">
+  <div class="rotate-icon" id="rotate-icon"></div>
+  <h2>หมุนจอเป็นแนวนอน</h2>
+  <p>เกมนี้ออกแบบมาให้เล่นแนวนอน หมุนมือถือ/แท็บเล็ตแล้วเล่นต่อได้เลย</p>
+</div>
 
 <!-- ============ 1. CREATE ROOM ============ -->
 <section id="screen-setup" class="screen">
@@ -97,7 +102,7 @@
   </div>
 </section>
 
-<!-- ============ 3. HOST GAME (spectator dashboard) ============ -->
+<!-- ============ 3. HOST GAME (spectator dashboard — poker-table layout) ============ -->
 <section id="screen-hostgame" class="screen hidden">
   <button class="back-btn"></button>
   <div class="game-shell">
@@ -106,7 +111,15 @@
       <div class="timer" id="host-timer">05:00</div>
     </div>
     <div id="item-activity" class="item-activity hidden"></div>
-    <div id="host-team-grid" class="roster-grid"></div>
+    <div class="game-table-wrap" id="game-table-wrap">
+      <div class="game-table-felt">
+        <div class="table-center">
+          <div class="table-center-label">รหัส PIN</div>
+          <div class="table-center-pin" id="table-pin">------</div>
+        </div>
+      </div>
+      <div id="host-team-grid" class="team-seats"></div>
+    </div>
   </div>
 </section>
 
@@ -127,9 +140,15 @@
 <script src="sound.js"></script>
 <script src="host.js"></script>
 <script>
+  document.getElementById("rotate-icon").innerHTML = iconHtml("rotateDevice");
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock("landscape").catch(() => {});
+    }
+  } catch (e) {}
 </script>
 </body>
 </html>

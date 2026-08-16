@@ -21,6 +21,11 @@
 <div id="dvd-layer" class="dvd-layer"></div>
 <div id="freeze-overlay" class="freeze-overlay hidden"></div>
 <div id="toast" class="toast"></div>
+<div id="rotate-prompt" class="rotate-prompt">
+  <div class="rotate-icon" id="rotate-icon"></div>
+  <h2>หมุนจอเป็นแนวนอน</h2>
+  <p>เกมนี้ออกแบบมาให้เล่นแนวนอน หมุนมือถือแล้วเล่นต่อได้เลย</p>
+</div>
 
 <!-- ============ 1. JOIN WITH PIN ============ -->
 <section id="screen-join" class="screen">
@@ -159,9 +164,18 @@
 <script src="sound.js"></script>
 <script src="client.js"></script>
 <script>
+  document.getElementById("rotate-icon").innerHTML = iconHtml("rotateDevice");
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
+  // Best-effort real orientation lock — only actually works in a few
+  // contexts (installed PWA / fullscreen on Android Chrome). The CSS
+  // rotate-prompt above is what makes this reliable everywhere else.
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock("landscape").catch(() => {});
+    }
+  } catch (e) {}
 </script>
 </body>
 </html>

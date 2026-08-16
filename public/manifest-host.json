@@ -5,7 +5,7 @@
   "start_url": "host.html",
   "scope": ".",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "landscape",
   "background_color": "#1b1a3a",
   "theme_color": "#1b1a3a",
   "icons": [

@@ -59,6 +59,12 @@ const ICONS = {
     <svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="24" cy="24" r="18"/><path d="M24 15 V33 M18 19 h9 a4 4 0 0 1 0 8 h-9 M18 29 h10"/>
     </svg>`,
+  rotateDevice: (c = "currentColor") => `
+    <svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="14" y="4" width="20" height="30" rx="3"/>
+      <path d="M4 30 a16 16 0 0 0 16 14"/>
+      <path d="M4 22 L4 30 L12 30"/>
+    </svg>`,
 };
 
 const CATEGORY_META = {
