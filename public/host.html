@@ -21,6 +21,7 @@
 <div id="freeze-overlay" class="freeze-overlay hidden"></div>
 <div id="confetti-layer" class="confetti-layer"></div>
 <div id="toast" class="toast"></div>
+<div id="host-screen-warning" class="host-screen-warning">หน้านี้ออกแบบมาสำหรับจอใหญ่ (คอมพิวเตอร์/แท็บเล็ต) เพื่อประสบการณ์ที่ดีที่สุด</div>
 <div id="rotate-prompt" class="rotate-prompt">
   <div class="rotate-icon" id="rotate-icon"></div>
   <h2>หมุนจอเป็นแนวนอน</h2>
@@ -85,18 +86,17 @@
   </div>
 </section>
 
-<!-- ============ 2. LOBBY ============ -->
+<!-- ============ 2. LOBBY (empty classroom, PIN on the sign) ============ -->
 <section id="screen-lobby" class="screen hidden">
   <button class="back-btn"></button>
   <div class="game-shell">
-    <div class="pin-display">
-      <div class="pin-label">รหัส PIN เข้าห้อง</div>
-      <div class="pin-value" id="lobby-pin">------</div>
-      <p class="small-note">ให้นักเรียนเข้า URL ของหน้าเว็บผู้เล่น แล้วใส่รหัสนี้ แล้วเลือกที่นั่งรอบโต๊ะ</p>
+    <div class="room-sign">
+      <div class="sign-label">รหัส PIN เข้าห้อง</div>
+      <div class="sign-pin" id="lobby-pin">------</div>
+      <p class="small-note">ให้นักเรียนเข้า URL ของหน้าเว็บผู้เล่น แล้วใส่รหัสนี้ แล้วเลือกโต๊ะที่จะนั่ง</p>
     </div>
-    <div class="game-table-wrap">
-      <div class="game-table-felt"></div>
-      <div id="roster-grid" class="team-seats"></div>
+    <div class="iso-floor">
+      <div id="roster-grid" class="desk-grid"></div>
     </div>
     <div class="row" style="justify-content:center; margin-top:4px;">
       <button id="btn-start" class="btn btn-primary" style="min-width:220px;">เริ่มเกม</button>
@@ -104,7 +104,7 @@
   </div>
 </section>
 
-<!-- ============ 3. HOST GAME (spectator dashboard — poker-table layout) ============ -->
+<!-- ============ 3. HOST GAME (spectator dashboard — classroom desk layout) ============ -->
 <section id="screen-hostgame" class="screen hidden">
   <button class="back-btn"></button>
   <div class="game-shell">
@@ -113,14 +113,12 @@
       <div class="timer" id="host-timer">05:00</div>
     </div>
     <div id="item-activity" class="item-activity hidden"></div>
-    <div class="game-table-wrap" id="game-table-wrap">
-      <div class="game-table-felt">
-        <div class="table-center">
-          <div class="table-center-label">รหัส PIN</div>
-          <div class="table-center-pin" id="table-pin">------</div>
-        </div>
-      </div>
-      <div id="host-team-grid" class="team-seats"></div>
+    <div class="room-sign">
+      <div class="sign-label">รหัส PIN</div>
+      <div class="sign-pin" id="table-pin" style="font-size:1.3rem;letter-spacing:4px;">------</div>
+    </div>
+    <div class="iso-floor">
+      <div id="host-team-grid" class="desk-grid"></div>
     </div>
   </div>
 </section>

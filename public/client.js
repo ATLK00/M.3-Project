@@ -86,6 +86,7 @@ const state = {
   tokens: 0,
   frozenUntil: 0,
   wrongLockUntil: 0,
+  lastLobby: null,
 };
 
 function isBoardLocked() {
@@ -148,6 +149,7 @@ function attemptRejoin() {
         showScreen("screen-role");
       } else {
         document.getElementById("waiting-summary").textContent = `ทีม: ${state.teamName} · บทบาท: ${roleLabel(state.role)}`;
+        renderMyDesk();
         showScreen("screen-waiting");
       }
     } else if (res.status === "playing") {
@@ -226,24 +228,22 @@ document.getElementById("btn-name").addEventListener("click", () => {
   });
 });
 
-// ---------------- 3. Team (choose a seat at the table) ----------------
+// ---------------- 3. Team (choose a desk in the classroom) ----------------
 function renderTeamGrid() {
   const grid = document.getElementById("team-grid");
   grid.innerHTML = "";
-  const n = state.teams.length;
-  state.teams.forEach((t, i) => {
+  state.teams.forEach((t) => {
     const full = t.count >= t.maxPerTeam;
-    const { xPct, yPct } = seatPosition(i, n);
     const btn = document.createElement("button");
-    btn.className = "team-seat-btn";
+    btn.className = "desk-tile";
     btn.disabled = full;
-    btn.style.left = xPct + "%";
-    btn.style.top = yPct + "%";
-    btn.style.setProperty("--seat-color", t.color);
+    btn.style.setProperty("--desk-color", t.color);
     btn.innerHTML = `
-      <div class="seat-avatar" style="background:${t.color}">${initials(t.name)}</div>
-      <div class="seat-name">${t.name}</div>
-      <div class="seat-count">${t.count}/${t.maxPerTeam} คน${full ? " · เต็ม" : ""}</div>
+      <div class="desk-diamond-wrap">
+        <div class="desk-diamond"></div>
+        <div class="desk-avatar">${initials(t.name)}</div>
+      </div>
+      <div class="desk-label"><b>${t.name}</b><span>${t.count}/${t.maxPerTeam} คน${full ? " · เต็ม" : ""}</span></div>
     `;
     btn.addEventListener("click", () => chooseTeam(t.id));
     grid.appendChild(btn);
@@ -268,6 +268,7 @@ function chooseTeam(teamId) {
       state.role = "solo";
       document.getElementById("waiting-summary").textContent =
         `ทีม: ${state.teamName} · คุณเล่นคนเดียว (ทำหน้าที่ครบทุกบทบาท)`;
+      renderMyDesk();
       showScreen("screen-waiting");
     } else {
       showScreen("screen-role");
@@ -299,6 +300,7 @@ document.querySelectorAll("#screen-role .choice-card").forEach((btn) => {
       if (activeBtn) activeBtn.classList.add("selected");
       document.getElementById("waiting-summary").textContent =
         `ทีม: ${state.teamName} · บทบาท: ${roleLabel(res.role)}`;
+      renderMyDesk();
       showScreen("screen-waiting");
     });
   });
@@ -313,6 +315,45 @@ socket.on("client:forceRoleSelect", () => {
 
 function roleLabel(role) {
   return { opener: "คนเปิดไพ่", confirmer: "คนกดยืนยัน", item: "คนใช้ไอเทม", solo: "เล่นคนเดียว (ทุกบทบาท)" }[role] || role;
+}
+
+// ---------------- Waiting screen: your desk + teammate tokens ----------------
+socket.on("lobby:update", (lobby) => {
+  state.lastLobby = lobby;
+  if (!document.getElementById("screen-waiting").classList.contains("hidden")) {
+    renderMyDesk();
+  }
+});
+
+function renderMyDesk() {
+  const nameEl = document.getElementById("waiting-team-name");
+  const diamondEl = document.getElementById("my-desk-diamond");
+  const tokensEl = document.getElementById("teammate-tokens");
+  if (!nameEl || !diamondEl || !tokensEl) return;
+
+  nameEl.textContent = state.teamName || "ทีมของคุณ";
+  diamondEl.style.setProperty("--desk-color", state.teamColor || "#8b5cf6");
+  tokensEl.innerHTML = "";
+
+  const team = state.lastLobby && state.lastLobby.teams.find((t) => t.id === state.teamId);
+  const players = team ? team.players : [];
+  if (players.length === 0) return;
+
+  const rx = 40;
+  const ry = 40;
+  players.forEach((p, i) => {
+    const angle = (2 * Math.PI * i) / players.length - Math.PI / 2;
+    const xPct = 50 + rx * Math.cos(angle);
+    const yPct = 50 + ry * Math.sin(angle);
+    const isMe = p.id === socket.id;
+    const token = document.createElement("div");
+    token.className = "teammate-token" + (isMe ? " me" : "");
+    token.style.left = xPct + "%";
+    token.style.top = yPct + "%";
+    token.style.background = state.teamColor || "#8b5cf6";
+    token.innerHTML = `${initials(p.name)}<span class="teammate-role-tag">${p.role ? roleLabel(p.role) : "..."}</span>`;
+    tokensEl.appendChild(token);
+  });
 }
 
 // ---------------- 6. Game start ----------------
@@ -333,7 +374,7 @@ socket.on("game:started", ({ endsAt, teams }) => {
     setupItemButtons();
     if (canUseItem) renderTargetChips();
 
-    renderBoard();
+    renderBoard(true);
     updateProgress();
     updateTokenUI();
     showScreen("screen-game");
@@ -378,11 +419,15 @@ function buildCardFace(card) {
   return frontHtml;
 }
 
-function buildCardEl(card, idx, canOpen, locked) {
+function buildCardEl(card, idx, canOpen, locked, dealIn) {
   const el = document.createElement("div");
   el.className = "card" + (card.state === "matched" ? " flipped matched" : card.state === "revealed" ? " flipped" : "");
   if (!canOpen || locked) el.classList.add("disabled-click");
   if (locked) el.classList.add("locked");
+  if (dealIn) {
+    el.classList.add("deal-in");
+    el.style.setProperty("--deal-i", idx);
+  }
   el.dataset.idx = idx;
   el.innerHTML = `
     <div class="card-inner">
@@ -410,7 +455,7 @@ function buildFallbackCardEl(idx) {
   return el;
 }
 
-function renderBoard() {
+function renderBoard(dealIn) {
   const board = document.getElementById("board");
   const canOpen = state.role === "opener" || state.role === "solo";
   const locked = isBoardLocked();
@@ -422,7 +467,7 @@ function renderBoard() {
   state.board.forEach((card, idx) => {
     let el;
     try {
-      el = buildCardEl(card, idx, canOpen, locked);
+      el = buildCardEl(card, idx, canOpen, locked, dealIn);
     } catch (err) {
       console.error("Card render failed — showing fallback for this card only.", err, card);
       el = buildFallbackCardEl(idx);

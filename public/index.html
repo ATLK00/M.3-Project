@@ -50,14 +50,13 @@
   </div>
 </section>
 
-<!-- ============ 3. CHOOSE TEAM ============ -->
+<!-- ============ 3. CHOOSE TEAM (classroom desks) ============ -->
 <section id="screen-team" class="screen hidden">
   <button class="back-btn"></button>
   <div class="game-shell">
-    <h1 class="title-xl">เลือกที่นั่งของคุณ</h1>
-    <div class="game-table-wrap">
-      <div class="game-table-felt"></div>
-      <div id="team-grid" class="team-seats"></div>
+    <h1 class="title-xl">เลือกโต๊ะของคุณ</h1>
+    <div class="iso-floor">
+      <div id="team-grid" class="desk-grid"></div>
     </div>
   </div>
 </section>
@@ -89,13 +88,20 @@
   </div>
 </section>
 
-<!-- ============ 5. WAITING FOR HOST ============ -->
+<!-- ============ 5. WAITING FOR HOST (your desk, teammates as tokens) ============ -->
 <section id="screen-waiting" class="screen hidden">
   <button class="back-btn"></button>
-  <div class="glass-card center-text">
-    <div class="waiting-pulse"></div>
-    <h1 class="title-xl">รอหัวห้องกดเริ่มเกม…</h1>
-    <p id="waiting-summary" class="subtitle"></p>
+  <div class="game-shell" style="align-items:center;">
+    <h1 class="title-xl" id="waiting-team-name">ทีมของคุณ</h1>
+    <div class="my-desk-wrap">
+      <div class="my-desk-diamond-wrap">
+        <div class="my-desk-diamond" id="my-desk-diamond"></div>
+        <div class="teammate-tokens" id="teammate-tokens"></div>
+      </div>
+      <div class="waiting-pulse"></div>
+      <p class="subtitle">รอหัวห้องกดเริ่มเกม…</p>
+      <p id="waiting-summary" class="small-note"></p>
+    </div>
   </div>
 </section>
 

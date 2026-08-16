@@ -114,10 +114,8 @@ function renderLobby(lobby) {
 
   const grid = document.getElementById("roster-grid");
   grid.innerHTML = "";
-  const n = lobby.teams.length || 1;
 
-  lobby.teams.forEach((t, i) => {
-    const { xPct, yPct } = seatPosition(i, n);
+  lobby.teams.forEach((t) => {
     const playersHtml = t.players.length
       ? t.players
           .map((p) => {
@@ -126,18 +124,21 @@ function renderLobby(lobby) {
             return `<span class="player-chip${!p.role ? " no-role" : ""}">${escapeHtml(p.name || "ผู้เล่น")}${offline} · ${roleTxt}</span>`;
           })
           .join("")
-      : `<span class="player-chip no-role">ยังไม่มีผู้เล่น</span>`;
+      : `<span class="player-chip no-role">ยังไม่มีคนนั่ง</span>`;
 
-    const seat = document.createElement("div");
-    seat.className = "lobby-seat";
-    seat.style.left = xPct + "%";
-    seat.style.top = yPct + "%";
-    seat.innerHTML = `
-      <div class="seat-avatar" style="background:${t.color}">${initials(t.name)}</div>
-      <div class="seat-name">${escapeHtml(t.name)} (${t.players.length}/${t.maxPerTeam})</div>
-      <div class="seat-players">${playersHtml}</div>
+    const desk = document.createElement("div");
+    desk.className = "desk-tile";
+    desk.dataset.teamId = t.id;
+    desk.style.setProperty("--desk-color", t.color);
+    desk.innerHTML = `
+      <div class="desk-diamond-wrap">
+        <div class="desk-diamond"></div>
+        <div class="desk-avatar">${initials(t.name)}</div>
+      </div>
+      <div class="desk-label"><b>${escapeHtml(t.name)}</b><span>${t.players.length}/${t.maxPerTeam} คน</span></div>
+      <div class="desk-roster">${playersHtml}</div>
     `;
-    grid.appendChild(seat);
+    grid.appendChild(desk);
   });
 }
 
@@ -170,34 +171,30 @@ function renderDashboard() {
 
   const wrap = document.getElementById("host-team-grid");
   wrap.innerHTML = "";
-  const n = dashboardTeams.length || 1;
 
-  dashboardTeams.forEach((t, i) => {
-    const { xPct, yPct } = seatPosition(i, n);
-
+  dashboardTeams.forEach((t) => {
     const pct = Math.round((t.matchedPairs / t.pairCount) * 100);
     const frozen = t.frozenUntil && t.frozenUntil > Date.now();
     const finished = !!t.finishedAt;
 
-    const seat = document.createElement("div");
-    seat.className = "team-seat" + (finished ? " seat-finished" : "");
-    seat.dataset.teamId = t.id;
-    seat.style.left = xPct + "%";
-    seat.style.top = yPct + "%";
-    seat.style.setProperty("--seat-color", t.color);
-    seat.innerHTML = `
-      <div class="seat-avatar" style="background:${t.color}">${initials(t.name)}</div>
-      <div class="seat-info">
-        <div class="seat-name">${escapeHtml(t.name)}${frozen ? ' <span class="frozen-tag">แช่แข็ง</span>' : ""}</div>
-        <div class="seat-bar"><div class="seat-bar-fill" style="width:${pct}%;background:${t.color}"></div></div>
-        <div class="seat-stats">
-          <span>${t.matchedPairs}/${t.pairCount} คู่</span>
-          <span>· พลาด ${t.wrongAttempts}</span>
-          <span class="seat-chip">${iconHtml("coin", "#ffd76b")}${t.tokens ?? 0}</span>
-        </div>
+    const desk = document.createElement("div");
+    desk.className = "desk-tile" + (finished ? " finished" : "");
+    desk.dataset.teamId = t.id;
+    desk.style.setProperty("--desk-color", t.color);
+    desk.innerHTML = `
+      <div class="desk-diamond-wrap">
+        <div class="desk-diamond"></div>
+        <div class="desk-avatar">${initials(t.name)}</div>
+      </div>
+      <div class="desk-label"><b>${escapeHtml(t.name)}${frozen ? ' <span class="frozen-tag">แช่แข็ง</span>' : ""}</b></div>
+      <div class="desk-bar"><div class="desk-bar-fill" style="width:${pct}%;background:${t.color}"></div></div>
+      <div class="desk-stats">
+        <span>${t.matchedPairs}/${t.pairCount} คู่</span>
+        <span>· พลาด ${t.wrongAttempts}</span>
+        <span class="seat-chip">${iconHtml("coin", "#ffd76b")}${t.tokens ?? 0}</span>
       </div>
     `;
-    wrap.appendChild(seat);
+    wrap.appendChild(desk);
   });
 }
 
@@ -208,8 +205,8 @@ function initials(name) {
 
 const ITEM_FLY_ICON = { swap: "swap", freeze: "freeze", peek: "eye" };
 function animateItemFly(fromTeamId, targetTeamId, itemType) {
-  const fromEl = document.querySelector(`.team-seat[data-team-id="${fromTeamId}"]`);
-  const toEl = document.querySelector(`.team-seat[data-team-id="${targetTeamId}"]`);
+  const fromEl = document.querySelector(`.desk-tile[data-team-id="${fromTeamId}"]`);
+  const toEl = document.querySelector(`.desk-tile[data-team-id="${targetTeamId}"]`);
   flyItemAnimation(fromEl, toEl, ITEM_FLY_ICON[itemType] || "bolt", "#e9def7");
 }
 
