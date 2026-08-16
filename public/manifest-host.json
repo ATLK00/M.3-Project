@@ -1,0 +1,17 @@
+{
+  "name": "จับคู่เครื่องดนตรี — หัวห้อง",
+  "short_name": "หัวห้อง-ดนตรี",
+  "description": "แดชบอร์ดหัวห้องสำหรับเกมจับคู่เครื่องดนตรีสากล",
+  "start_url": "host.html",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1b1a3a",
+  "theme_color": "#1b1a3a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

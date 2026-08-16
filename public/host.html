@@ -2,9 +2,19 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
 <title>จับคู่เครื่องดนตรี — หัวห้อง</title>
 <link rel="stylesheet" href="style.css" />
+
+<!-- PWA / Add to Home Screen (separate manifest so it opens host.html) -->
+<link rel="manifest" href="manifest-host.json" />
+<meta name="theme-color" content="#1b1a3a" />
+<link rel="icon" href="icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="หัวห้อง-ดนตรี" />
 </head>
 <body>
 
@@ -95,6 +105,7 @@
       <div class="team-name">แดชบอร์ดหัวห้อง</div>
       <div class="timer" id="host-timer">05:00</div>
     </div>
+    <div id="item-activity" class="item-activity hidden"></div>
     <div id="host-team-grid" class="roster-grid"></div>
   </div>
 </section>
@@ -115,5 +126,10 @@
 <script src="faces.js"></script>
 <script src="sound.js"></script>
 <script src="host.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+</script>
 </body>
 </html>

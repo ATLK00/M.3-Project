@@ -184,20 +184,38 @@ socket.on("game:teamFrozen", ({ teamId, until }) => {
   const t = findDashTeam(teamId);
   if (t) t.frozenUntil = until;
   renderDashboard();
-  toast(`${t ? t.name : "ทีม"} ถูกแช่แข็ง!`);
   setTimeout(renderDashboard, (until - Date.now()) + 50);
 });
 
-socket.on("game:cardsSwapped", ({ teamId, fromTeam }) => {
-  const t = findDashTeam(teamId);
-  const from = findDashTeam(fromTeam);
-  toast(`${from ? from.name : "ทีมหนึ่ง"} สลับไพ่ของ ${t ? t.name : "ทีมเป้าหมาย"}`);
+socket.on("game:cardsSwapped", () => {
+  // Announcement toast is handled generically by game:itemUsed below.
 });
+
+const HOST_ITEM_LABELS = { swap: "สลับตำแหน่งไพ่", freeze: "แช่แข็ง", peek: "ส่องไพ่" };
+
+function showItemActivity(text) {
+  const el = document.getElementById("item-activity");
+  el.textContent = text;
+  el.classList.remove("hidden");
+  clearTimeout(showItemActivity._t);
+  showItemActivity._t = setTimeout(() => el.classList.add("hidden"), 6000);
+}
 
 socket.on("game:itemUsed", (payload) => {
   const t = findDashTeam(payload.fromTeam);
   if (t) t.itemsUsedCount = (t.itemsUsedCount || 0) + 1;
   renderDashboard();
+  const label = HOST_ITEM_LABELS[payload.itemType] || payload.itemType;
+  if (payload.itemType === "peek") {
+    const msg = `${t ? t.name : "ทีม"} ใช้ไอเทม "${label}"`;
+    toast(msg);
+    showItemActivity(msg);
+  } else {
+    const targetT = findDashTeam(payload.targetTeamId);
+    const msg = `${t ? t.name : "ทีม"} ใช้ไอเทม "${label}" ใส่ ${targetT ? targetT.name : "ทีมอื่น"}`;
+    toast(msg);
+    showItemActivity(msg);
+  }
 });
 
 socket.on("game:teamFinished", ({ teamId }) => {

@@ -2,9 +2,19 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
 <title>จับคู่เครื่องดนตรี — ผู้เล่น</title>
 <link rel="stylesheet" href="style.css" />
+
+<!-- PWA / Add to Home Screen -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#1b1a3a" />
+<link rel="icon" href="icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="จับคู่ดนตรี" />
 </head>
 <body>
 
@@ -21,6 +31,7 @@
     <input id="input-pin" class="input pin-input" inputmode="numeric" maxlength="6" placeholder="000000" />
     <button id="btn-join" class="btn btn-primary btn-block">เข้าห้อง</button>
     <p id="join-error" class="small-note" style="color:#e23a5a;"></p>
+    <a href="host.html" class="host-shortcut-link">เป็นหัวห้อง? สร้างห้องใหม่ที่นี่</a>
   </div>
 </section>
 
@@ -81,6 +92,15 @@
   </div>
 </section>
 
+<!-- ============ 5b. LOADING GATE (waits for instrument data before showing the board) ============ -->
+<section id="screen-loading" class="screen hidden">
+  <div class="glass-card center-text">
+    <div class="waiting-pulse"></div>
+    <h1 class="title-xl">กำลังโหลดข้อมูลเกม…</h1>
+    <p class="subtitle">กำลังเตรียมชุดเครื่องดนตรีและสุ่มไพ่ให้เรียบร้อยก่อนเริ่มเล่น</p>
+  </div>
+</section>
+
 <!-- ============ 6. GAME ============ -->
 <section id="screen-game" class="screen hidden">
   <button class="back-btn"></button>
@@ -138,5 +158,10 @@
 <script src="faces.js"></script>
 <script src="sound.js"></script>
 <script src="client.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+</script>
 </body>
 </html>

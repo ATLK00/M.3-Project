@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>จัดการเครื่องดนตรี — Dev</title>
+<link rel="stylesheet" href="style.css" />
+<meta name="theme-color" content="#1b1a3a" />
+<link rel="icon" href="icons/favicon-32.png" />
+<style>
+  /* Page-specific layout only — everything else reuses style.css tokens. */
+  .admin-wrap {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 24px 16px 60px;
+  }
+  .admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .inst-table {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .inst-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--glass-strong);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+  }
+  .inst-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .inst-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+  }
+  .inst-thumb svg {
+    width: 24px;
+    height: 24px;
+  }
+  .inst-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .inst-info b {
+    display: block;
+    font-size: 0.95rem;
+  }
+  .inst-info span {
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+  .inst-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .inst-actions button {
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-edit {
+    background: rgba(139, 92, 246, 0.22);
+    color: #d8c9ff;
+  }
+  .btn-del {
+    background: rgba(251, 113, 133, 0.2);
+    color: #ffb4c0;
+  }
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #img-preview {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.08);
+    display: none;
+  }
+  #img-preview.show {
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<!-- ============ PASSCODE GATE ============ -->
+<section id="screen-gate" class="screen">
+  <div class="glass-card">
+    <h1 class="title-xl">รหัสผ่านผู้ดูแล</h1>
+    <p class="subtitle">หน้านี้สำหรับแก้ไขชุดเครื่องดนตรีของเกม (dev only)</p>
+    <input id="input-key" class="input" type="password" placeholder="ADMIN_KEY" />
+    <button id="btn-unlock" class="btn btn-primary btn-block">เข้าสู่ระบบ</button>
+    <p id="gate-error" class="small-note" style="color:#fb7185;"></p>
+  </div>
+</section>
+
+<!-- ============ ADMIN UI ============ -->
+<section id="screen-admin" class="screen hidden" style="align-items:center;">
+  <div class="admin-wrap">
+    <div class="admin-header">
+      <div class="brand">จัดการเครื่องดนตรี</div>
+      <button id="btn-lock" class="btn btn-secondary" style="padding:8px 14px;font-size:0.8rem;">ออกจากระบบ</button>
+    </div>
+
+    <div class="glass-card wide">
+      <h1 class="title-xl" id="form-title" style="font-size:1.2rem;">เพิ่มเครื่องดนตรีใหม่</h1>
+
+      <div class="form-row">
+        <label class="field-label">ชื่อเครื่องดนตรี</label>
+        <input id="input-th" class="input" placeholder="เช่น ระนาดทุ้ม" />
+      </div>
+
+      <div class="form-row">
+        <label class="field-label">ประเภท (ตระกูล)</label>
+        <div class="select-row">
+          <select id="input-category"></select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="field-label">รูปภาพ (ไม่บังคับ — ถ้าไม่ใส่จะใช้ไอคอนตระกูลแทน)</label>
+        <input id="input-image" class="input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+        <img id="img-preview" alt="" />
+      </div>
+
+      <div class="row">
+        <button id="btn-save" class="btn btn-primary btn-block">บันทึก</button>
+        <button id="btn-cancel-edit" class="btn btn-secondary hidden">ยกเลิก</button>
+      </div>
+      <p id="form-error" class="small-note" style="color:#fb7185;"></p>
+    </div>
+
+    <div class="glass-card wide">
+      <h1 class="title-xl" style="font-size:1.1rem;">รายการปัจจุบัน (<span id="inst-count">0</span>)</h1>
+      <div id="inst-table" class="inst-table"></div>
+      <p class="small-note">ต้องมีอย่างน้อย 4 ชิ้นเพื่อให้เกมเล่นได้ (ระดับยากสุดใช้ 12 คู่ — แนะนำมีอย่างน้อย 12-14 ชิ้น)</p>
+    </div>
+  </div>
+</section>
+
+<script src="icons.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

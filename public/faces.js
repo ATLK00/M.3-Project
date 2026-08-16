@@ -14,17 +14,17 @@
  */
 
 const FACE_FILES = [
-  "1.png",
-  "2.png",
-  "3.png",
-  "4.png",
-  "5.png",
-  "6.png",
-  "7.png",
-  "8.png",
-  "9.png",
-  "10.png",
-  "11.png",
+  "xthichat.png",
+  "prom.png",
+  "kittipob.png",
+  "witsnu.png",
+  "ploy.png",
+  "fah.png",
+  "nan.png",
+  "boss.png",
+  "ohm.png",
+  "gam.png",
+  "tar.png",
 ];
 
 const FACE_DIR = "assets/faces/";
@@ -34,7 +34,8 @@ const FACE_DIR = "assets/faces/";
 // follows the alpha silhouette) reads as a colored outline hugging the
 // actual photo shape, not a rectangle or forced circle.
 const FACE_COLORS = [
-  "#ffffff"
+  "#FF6B9D", "#4D96FF", "#6BCB77", "#FFB84C", "#C780FA",
+  "#5CE1E6", "#FF8FA3", "#FFD93D", "#7B8CFF", "#55D6FF", "#F97C7C",
 ];
 
 function faceGlow(color) {
@@ -62,8 +63,8 @@ function initDvdLayer() {
       el: img,
       x: Math.random() * (window.innerWidth - size),
       y: Math.random() * (window.innerHeight - size),
-      vx: (Math.random() * 0.3 + 0.1) * (Math.random() < 0.5 ? -1 : 1),
-      vy: (Math.random() * 0.3 + 0.1) * (Math.random() < 0.5 ? -1 : 1),
+      vx: (Math.random() * 0.18 + 0.1) * (Math.random() < 0.5 ? -1 : 1),
+      vy: (Math.random() * 0.18 + 0.1) * (Math.random() < 0.5 ? -1 : 1),
       size,
     };
     return state;

@@ -1,34 +1,41 @@
 /* =================================================================
    Music Match Game — Design tokens
-   Palette: sky-mint background wash, sunset-orange primary action,
-   soft glass panels. Type: "Kanit" everywhere (rounded geometric
-   Thai+Latin display face) so Thai and English sit on the same
-   friendly, energetic voice — no serif/sans mismatch.
+   Palette: deep indigo/navy "game table" background with vivid purple
+   accents and playful glass panels — inspired by modern dark mobile-game
+   UI (chip badges, rounded avatar bubbles, glowing primary actions).
+   Cards themselves stay crisp white (like real playing cards on a felt
+   table) so their content is always easy to read at a glance.
+   Type: "Kanit" everywhere (rounded geometric Thai+Latin display face).
    ================================================================= */
 
 @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap");
 
 :root {
-  --bg-1: #eaf7ff;
-  --bg-2: #fdeeff;
-  --bg-3: #fff8e8;
-  --ink: #2c3145;
-  --ink-soft: #6b7290;
-  --glass: rgba(255, 255, 255, 0.6);
-  --glass-strong: rgba(255, 255, 255, 0.82);
-  --glass-border: rgba(255, 255, 255, 0.75);
-  --accent: #ff8c42;
-  --accent-dark: #f5701a;
-  --accent-soft: #ffe2c7;
-  --sky: #6fb7ff;
-  --sky-soft: #d9ecff;
-  --mint: #4ecdb4;
-  --danger: #ff5d7a;
+  --bg-1: #1b1a3a;
+  --bg-2: #241f4d;
+  --bg-3: #171531;
+  --ink: #f2f1fb;
+  --ink-soft: #a7abd6;
+  --ink-dark: #241f47;
+  --ink-dark-soft: #6b6690;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-strong: rgba(255, 255, 255, 0.09);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --surface: #201c46;
+  --surface-2: #14122c;
+  --accent: #8b5cf6;
+  --accent-dark: #6d28d9;
+  --accent-soft: #362a6e;
+  --accent-rgb: 139, 92, 246;
+  --sky: #22d3ee;
+  --sky-soft: rgba(34, 211, 238, 0.18);
+  --mint: #34d399;
+  --danger: #fb7185;
   --radius-lg: 28px;
   --radius-md: 18px;
   --radius-sm: 12px;
-  --shadow-soft: 0 10px 30px rgba(70, 90, 140, 0.14);
-  --shadow-pop: 0 18px 40px rgba(70, 90, 140, 0.22);
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 18px 44px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -45,7 +52,7 @@ body {
 body {
   font-family: "Kanit", "Noto Sans Thai", sans-serif;
   color: var(--ink);
-  background: linear-gradient(160deg, var(--bg-1), var(--bg-2) 55%, var(--bg-3));
+  background: radial-gradient(120% 90% at 15% 0%, var(--bg-2), var(--bg-1) 55%, var(--bg-3));
   background-attachment: fixed;
   min-height: 100vh;
   overflow-x: hidden;
@@ -139,8 +146,8 @@ label.field-label {
 
 .input {
   width: 100%;
-  border: 2px solid var(--sky-soft);
-  background: #f4f6fa;
+  border: 2px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-sm);
   padding: 14px 16px;
   font-size: 1.05rem;
@@ -152,7 +159,7 @@ label.field-label {
 
 .input:focus {
   border-color: var(--sky);
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.11);
 }
 
 .input.pin-input {
@@ -167,8 +174,8 @@ label.field-label {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: #f4f6fa;
-  border: 2px solid var(--sky-soft);
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid var(--glass-border);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
 }
@@ -207,17 +214,17 @@ label.field-label {
 .btn-primary {
   background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: white;
-  box-shadow: 0 10px 22px rgba(255, 140, 66, 0.38);
+  box-shadow: 0 10px 26px rgba(var(--accent-rgb), 0.45);
 }
 
 .btn-primary:hover:not(:disabled) {
-  box-shadow: 0 14px 26px rgba(255, 140, 66, 0.46);
+  box-shadow: 0 14px 30px rgba(var(--accent-rgb), 0.55);
 }
 
 .btn-secondary {
-  background: white;
+  background: rgba(255, 255, 255, 0.08);
   color: var(--ink);
-  border: 2px solid var(--sky-soft);
+  border: 2px solid var(--glass-border);
 }
 
 .btn-ghost {
@@ -275,7 +282,7 @@ label.field-label {
 
 .choice-card .role-icon {
   width: 30px;
-  color: var(--accent-dark);
+  color: #c4b5fd;
 }
 
 .choice-card .role-icon svg {
@@ -313,8 +320,8 @@ label.field-label {
   font-size: 3.6rem;
   font-weight: 800;
   letter-spacing: 10px;
-  color: var(--accent-dark);
-  text-shadow: 0 4px 0 rgba(255, 255, 255, 0.6);
+  color: #cfc2ff;
+  text-shadow: 0 0 24px rgba(var(--accent-rgb), 0.65), 0 0 4px rgba(var(--accent-rgb), 0.9);
 }
 
 /* ---------------- Lobby roster ---------------- */
@@ -344,7 +351,7 @@ label.field-label {
   font-size: 0.85rem;
   padding: 6px 8px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.08);
   margin-bottom: 6px;
   display: flex;
   justify-content: space-between;
@@ -440,7 +447,7 @@ label.field-label {
 .hud .timer {
   font-weight: 700;
   font-size: 1.2rem;
-  color: var(--accent-dark);
+  color: #c4b5fd;
   font-variant-numeric: tabular-nums;
 }
 
@@ -511,8 +518,12 @@ label.field-label {
 }
 
 .card-back {
-  background: linear-gradient(135deg, var(--sky), #8fd3ff);
+  background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.07) 0 8px, transparent 8px 16px),
+    linear-gradient(135deg, var(--accent-dark), var(--accent));
   color: white;
+  border: 2px solid rgba(255, 255, 255, 0.18);
 }
 
 .back-mark {
@@ -541,16 +552,32 @@ label.field-label {
   display: block;
 }
 
+.card-front .card-img {
+  width: 44%;
+  max-width: 52px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.mini-icon .card-img.mini {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
 .card-front .card-text {
   font-size: 0.78rem;
   font-weight: 700;
   line-height: 1.15;
-  color: var(--ink);
+  color: var(--ink-dark);
 }
 
 .card-front .label {
   font-size: 0.58rem;
-  color: var(--ink-soft);
+  color: var(--ink-dark-soft);
   font-weight: 500;
 }
 
@@ -600,6 +627,7 @@ label.field-label {
 
 .vote-card {
   background: white;
+  color: var(--ink-dark);
   border-radius: var(--radius-lg);
   padding: 26px 22px;
   max-width: 360px;
@@ -620,7 +648,7 @@ label.field-label {
   min-height: 96px;
   border-radius: 12px;
   background: linear-gradient(135deg, #fff, #f3f6ff);
-  border: 2px solid var(--sky-soft);
+  border: 2px solid rgba(34, 211, 238, 0.35);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -643,7 +671,7 @@ label.field-label {
 .vote-pair .mini-text {
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--ink-dark);
   line-height: 1.15;
 }
 
@@ -727,7 +755,7 @@ label.field-label {
 .cooldown-bar {
   height: 8px;
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
@@ -757,7 +785,7 @@ label.field-label {
 
 .target-chip.selected {
   opacity: 1;
-  outline: 3px solid rgba(0, 0, 0, 0.15);
+  outline: 3px solid rgba(255, 255, 255, 0.55);
 }
 
 /* ---------------- Freeze effect ---------------- */
@@ -786,9 +814,9 @@ label.field-label {
 
 .freeze-face {
   position: absolute;
-  bottom: -160px;
-  width: 108px;
-  height: 108px;
+  bottom: -190px;
+  width: 150px;
+  height: 150px;
   object-fit: contain;
   animation-name: freeze-fly;
   animation-timing-function: cubic-bezier(0.3, 0, 0.7, 1);
@@ -818,8 +846,8 @@ label.field-label {
 
 .dvd-face {
   position: absolute;
-  width: 200px;
-  height: 200px;
+  width: 100px;
+  height: 100px;
   object-fit: contain;
   opacity: 0.8;
   will-change: transform;
@@ -845,7 +873,7 @@ label.field-label {
 
 .result-row .bar-wrap {
   flex: 1;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 6px;
   height: 10px;
   overflow: hidden;
@@ -863,8 +891,9 @@ label.field-label {
   bottom: 22px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--ink);
-  color: white;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  color: var(--ink);
   padding: 10px 18px;
   border-radius: 999px;
   font-size: 0.85rem;
@@ -899,6 +928,19 @@ label.field-label {
   font-size: 0.75rem;
   color: var(--ink-soft);
   text-align: center;
+}
+
+.host-shortcut-link {
+  display: block;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  margin-top: -4px;
+}
+
+.host-shortcut-link:hover {
+  color: var(--ink);
 }
 
 /* ---------------- Back / exit button ---------------- */
@@ -940,7 +982,7 @@ label.field-label {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e7ebf5;
+  background: rgba(255, 255, 255, 0.1);
   color: var(--ink-soft);
 }
 
@@ -1013,12 +1055,12 @@ label.field-label {
 .winner-name {
   font-size: 1.5rem;
   font-weight: 800;
-  color: var(--ink);
+  color: var(--ink-dark);
 }
 
 .winner-sub {
   font-size: 0.85rem;
-  color: var(--ink-soft);
+  color: var(--ink-dark-soft);
   font-weight: 500;
 }
 
@@ -1060,6 +1102,30 @@ label.field-label {
   border-radius: 999px;
   padding: 2px 8px;
   vertical-align: middle;
+}
+
+/* ---------------- Host: persistent "who used what" activity banner ---------------- */
+
+.item-activity {
+  background: var(--glass-strong);
+  border-left: 5px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+  animation: activity-pop 0.3s ease;
+}
+
+@keyframes activity-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 400px) {

@@ -18,7 +18,51 @@
 const socket = io();
 
 const ITEM_COSTS = { swap: 1, freeze: 2, peek: 1 };
-const ITEM_LABELS = { swap: "สลับตำแหน่งไพ่", freeze: "แช่แข็ง 3 วิ", peek: "ส่องไพ่ 2.5 วิ" };
+const ITEM_LABELS = { swap: "สลับตำแหน่งไพ่", freeze: "แช่แข็ง 3 วิ", peek: "ส่องไพ่ 3 วิ" };
+
+// ---------------- Instrument data (single source of truth from the server) ----------------
+// The client used to keep its own hand-copied instrument list, which could
+// silently drift out of sync with the server's and show a blank/unknown
+// card face. Now both sides read the same data/instruments.json (served
+// via GET /api/instruments), and we make sure this has actually finished
+// loading BEFORE we ever try to render a board — see `instrumentsReady`.
+let INSTRUMENTS_BY_ID = {};
+let CATEGORY_LABEL_FROM_SERVER = null;
+const instrumentsReady = fetch("/api/instruments")
+  .then((r) => r.json())
+  .then((data) => {
+    (data.instruments || []).forEach((inst) => (INSTRUMENTS_BY_ID[inst.id] = inst));
+    CATEGORY_LABEL_FROM_SERVER = data.categories || null;
+    return true;
+  })
+  .catch((err) => {
+    console.error("Failed to load /api/instruments — falling back to a minimal built-in set.", err);
+    // Minimal emergency fallback so the game can still start even if the
+    // instrument endpoint is briefly unreachable.
+    [
+      { id: "drum_kit", th: "กลองชุด", category: "percussion" },
+      { id: "guitar", th: "กีตาร์", category: "strings" },
+      { id: "trumpet", th: "ทรัมเป็ต", category: "brass" },
+      { id: "flute", th: "ขลุ่ย", category: "woodwind" },
+      { id: "piano", th: "เปียโน", category: "keyboard" },
+    ].forEach((inst) => (INSTRUMENTS_BY_ID[inst.id] = inst));
+    return false;
+  });
+
+let instrumentsLoaded = false;
+instrumentsReady.then(() => (instrumentsLoaded = true));
+
+/** Ensures instrument data has actually finished loading before we ever
+ *  try to draw a board — shows a brief loading screen if it hasn't
+ *  (normally already resolved long before this is called, since the
+ *  fetch kicks off the instant the page loads). */
+async function showGameWhenReady(setupFn) {
+  if (!instrumentsLoaded) {
+    showScreen("screen-loading");
+    await instrumentsReady;
+  }
+  setupFn();
+}
 
 function getOrCreatePlayerId() {
   let id = sessionStorage.getItem("mmg_playerId");
@@ -55,6 +99,7 @@ const screens = [
   "screen-team",
   "screen-role",
   "screen-waiting",
+  "screen-loading",
   "screen-game",
   "screen-results",
 ];
@@ -115,18 +160,20 @@ function attemptRejoin() {
         state.frozenUntil = myTeam.frozenUntil || 0;
         state.wrongLockUntil = myTeam.wrongLockUntil || 0;
       }
-      document.getElementById("hud-team-dot").style.background = state.teamColor;
-      document.getElementById("hud-team-name").textContent = state.teamName;
-      document.getElementById("role-label").textContent = roleLabel(state.role);
-      const canUseItem = state.role === "item" || state.role === "solo";
-      document.getElementById("item-panel").classList.toggle("hidden", !canUseItem);
-      setupItemButtons();
-      if (canUseItem) renderTargetChips();
-      renderBoard();
-      updateProgress();
-      updateTokenUI();
-      showScreen("screen-game");
-      toast("เชื่อมต่อกลับเข้าเกมแล้ว");
+      showGameWhenReady(() => {
+        document.getElementById("hud-team-dot").style.background = state.teamColor;
+        document.getElementById("hud-team-name").textContent = state.teamName;
+        document.getElementById("role-label").textContent = roleLabel(state.role);
+        const canUseItem = state.role === "item" || state.role === "solo";
+        document.getElementById("item-panel").classList.toggle("hidden", !canUseItem);
+        setupItemButtons();
+        if (canUseItem) renderTargetChips();
+        renderBoard();
+        updateProgress();
+        updateTokenUI();
+        showScreen("screen-game");
+        toast("เชื่อมต่อกลับเข้าเกมแล้ว");
+      });
     } else if (res.status === "ended") {
       renderResults(res.results || []);
       showScreen("screen-results");
@@ -268,58 +315,113 @@ socket.on("game:started", ({ endsAt, teams }) => {
   state.board = myTeam.board;
   state.tokens = myTeam.tokens || 0;
 
-  document.getElementById("hud-team-dot").style.background = myTeam.color;
-  document.getElementById("hud-team-name").textContent = myTeam.name;
-  document.getElementById("role-label").textContent = roleLabel(state.role);
-  const canUseItem = state.role === "item" || state.role === "solo";
-  document.getElementById("item-panel").classList.toggle("hidden", !canUseItem);
-  setupItemButtons();
-  if (canUseItem) renderTargetChips();
+  showGameWhenReady(() => {
+    document.getElementById("hud-team-dot").style.background = myTeam.color;
+    document.getElementById("hud-team-name").textContent = myTeam.name;
+    document.getElementById("role-label").textContent = roleLabel(state.role);
+    const canUseItem = state.role === "item" || state.role === "solo";
+    document.getElementById("item-panel").classList.toggle("hidden", !canUseItem);
+    setupItemButtons();
+    if (canUseItem) renderTargetChips();
 
-  renderBoard();
-  updateProgress();
-  updateTokenUI();
-  showScreen("screen-game");
+    renderBoard();
+    updateProgress();
+    updateTokenUI();
+    showScreen("screen-game");
+  });
 });
 
 // ---------------- Board rendering ----------------
 function cardContent(card) {
   const inst = INSTRUMENTS_BY_ID[card.instrumentId];
-  if (!inst) return { text: "", sub: "", color: "#999", icon: "" };
-  const meta = CATEGORY_META[inst.category];
-  if (card.kind === "category") {
-    return { text: meta.label, sub: "ประเภท", color: meta.color, icon: categoryIconHtml(inst.category) };
+  if (!inst) {
+    // Defensive fallback: should never happen now that both sides share
+    // the same /api/instruments data, but if a card ever arrives with an
+    // unrecognized/missing instrumentId, show a visible marker instead of
+    // a blank face so it's obvious something needs a refresh.
+    return { text: "ไม่ทราบ", sub: "-", color: "#999", icon: iconHtml("card", "#999"), image: null };
   }
-  return { text: inst.th, sub: "ชื่อเครื่องดนตรี", color: meta.color, icon: categoryIconHtml(inst.category) };
+  const meta = CATEGORY_META[inst.category] || { label: inst.category, color: "#999" };
+  if (card.kind === "category") {
+    return { text: meta.label, sub: "ประเภท", color: meta.color, icon: categoryIconHtml(inst.category), image: null };
+  }
+  // Only the "name" card shows the instrument's picture (if the dev page
+  // has one uploaded) — the category card always stays icon+text so it
+  // reads as "a family", not "a specific thing".
+  return {
+    text: inst.th,
+    sub: "ชื่อเครื่องดนตรี",
+    color: meta.color,
+    icon: categoryIconHtml(inst.category),
+    image: inst.image || null,
+  };
+}
+
+function buildCardFace(card) {
+  let frontHtml = "";
+  if (card.state !== "hidden") {
+    const c = cardContent(card);
+    const visual = c.image
+      ? `<img class="card-img" src="${c.image}" alt="" />`
+      : `<div class="icon-wrap" style="color:${c.color}">${c.icon}</div>`;
+    frontHtml = `${visual}<div class="card-text">${c.text}</div><div class="label">${c.sub}</div>`;
+  }
+  return frontHtml;
+}
+
+function buildCardEl(card, idx, canOpen, locked) {
+  const el = document.createElement("div");
+  el.className = "card" + (card.state === "matched" ? " flipped matched" : card.state === "revealed" ? " flipped" : "");
+  if (!canOpen || locked) el.classList.add("disabled-click");
+  if (locked) el.classList.add("locked");
+  el.dataset.idx = idx;
+  el.innerHTML = `
+    <div class="card-inner">
+      <div class="card-face card-back"><div class="back-mark">?</div></div>
+      <div class="card-face card-front">${buildCardFace(card)}</div>
+    </div>
+  `;
+  el.addEventListener("click", () => onCardClick(idx));
+  return el;
+}
+
+function buildFallbackCardEl(idx) {
+  // Should never be needed — belt-and-suspenders so one bad card's data
+  // can never leave the whole board blank if something unexpected slips
+  // through (e.g. a stray render exception).
+  const el = document.createElement("div");
+  el.className = "card disabled-click";
+  el.dataset.idx = idx;
+  el.innerHTML = `
+    <div class="card-inner">
+      <div class="card-face card-back"><div class="back-mark">?</div></div>
+      <div class="card-face card-front"><div class="card-text">-</div></div>
+    </div>
+  `;
+  return el;
 }
 
 function renderBoard() {
   const board = document.getElementById("board");
-  board.innerHTML = "";
   const canOpen = state.role === "opener" || state.role === "solo";
   const locked = isBoardLocked();
+  // Build everything in an off-DOM fragment first, so the visible board
+  // is only ever replaced once, as a complete unit — never left half
+  // torn-down. Each card also renders inside its own try/catch, so a
+  // single bad card can't blank out the rest of the board.
+  const frag = document.createDocumentFragment();
   state.board.forEach((card, idx) => {
-    const el = document.createElement("div");
-    el.className = "card" + (card.state === "matched" ? " flipped matched" : card.state === "revealed" ? " flipped" : "");
-    if (!canOpen || locked) el.classList.add("disabled-click");
-    if (locked) el.classList.add("locked");
-    el.dataset.idx = idx;
-
-    let frontHtml = "";
-    if (card.state !== "hidden") {
-      const c = cardContent(card);
-      frontHtml = `<div class="icon-wrap" style="color:${c.color}">${c.icon}</div><div class="card-text">${c.text}</div><div class="label">${c.sub}</div>`;
+    let el;
+    try {
+      el = buildCardEl(card, idx, canOpen, locked);
+    } catch (err) {
+      console.error("Card render failed — showing fallback for this card only.", err, card);
+      el = buildFallbackCardEl(idx);
     }
-
-    el.innerHTML = `
-      <div class="card-inner">
-        <div class="card-face card-back"><div class="back-mark">?</div></div>
-        <div class="card-face card-front">${frontHtml}</div>
-      </div>
-    `;
-    el.addEventListener("click", () => onCardClick(idx));
-    board.appendChild(el);
+    frag.appendChild(el);
   });
+  board.innerHTML = "";
+  board.appendChild(frag);
 }
 
 function onCardClick(idx) {
@@ -337,7 +439,7 @@ socket.on("game:boardUpdate", ({ teamId, board }) => {
   renderBoard();
 });
 
-socket.on("game:cardsResolved", ({ teamId, matched, board, matchedPairs, tokens, wrongLockUntil }) => {
+socket.on("game:cardsResolved", ({ teamId, matched, confirmed, board, matchedPairs, tokens, wrongLockUntil }) => {
   if (teamId !== state.teamId) return;
   state.board = board;
   if (typeof tokens === "number") {
@@ -348,7 +450,10 @@ socket.on("game:cardsResolved", ({ teamId, matched, board, matchedPairs, tokens,
   document.getElementById("hud-progress").textContent = `คู่ที่จับได้ ${matchedPairs}/${state.pairCount}`;
   closeVoteOverlay();
 
-  if (!matched) {
+  // Penalty only applies to a genuine wrong guess (confirmed "yes" but the
+  // pair didn't actually match) — clicking "ยกเลิก" to catch a bad flip
+  // before committing costs nothing.
+  if (!matched && confirmed) {
     state.wrongLockUntil = wrongLockUntil || Date.now();
     const remain = state.wrongLockUntil - Date.now();
     if (remain > 0) {
@@ -357,13 +462,20 @@ socket.on("game:cardsResolved", ({ teamId, matched, board, matchedPairs, tokens,
       setTimeout(renderBoard, remain + 60);
       return;
     }
+  } else if (!matched && !confirmed) {
+    toast("ยกเลิกแล้ว ไม่มีบทลงโทษ");
   }
   renderBoard();
 });
 
-socket.on("game:cardsSwapped", ({ teamId }) => {
+socket.on("game:cardsSwapped", ({ teamId, board, fromTeam }) => {
   if (teamId !== state.teamId) return;
-  toast("ทีมของคุณถูกสลับตำแหน่งไพ่!");
+  if (board) {
+    state.board = board;
+    renderBoard();
+  }
+  const fromT = state.teams.find((t) => t.id === fromTeam);
+  toast(`${fromT ? fromT.name : "ทีมอื่น"} สลับตำแหน่งไพ่ของทีมคุณ!`);
 });
 
 function updateProgress() {
@@ -382,13 +494,19 @@ function closeVoteOverlay() {
   document.getElementById("vote-overlay").classList.add("hidden");
 }
 
+function visualHtml(info) {
+  return info.image
+    ? `<img class="card-img mini" src="${info.image}" alt="" />`
+    : `<div class="icon-wrap" style="color:${info.color}">${info.icon}</div>`;
+}
+
 socket.on("game:voteRequest", ({ teamId, cards }) => {
   if (teamId !== state.teamId || (state.role !== "confirmer" && state.role !== "solo")) return;
   const pairEl = document.getElementById("vote-pair");
   pairEl.innerHTML = cards
     .map((c) => {
       const info = cardContent({ instrumentId: c.instrumentId, kind: c.kind, state: "revealed" });
-      return `<div class="mini-card" style="color:${info.color}"><div class="mini-icon">${info.icon}</div><div class="mini-text">${info.text}</div></div>`;
+      return `<div class="mini-card" style="color:${info.color}"><div class="mini-icon">${visualHtml(info)}</div><div class="mini-text">${info.text}</div></div>`;
     })
     .join("");
   document.getElementById("vote-progress").textContent = "";
@@ -497,37 +615,49 @@ function startCooldownUI(until) {
 }
 
 socket.on("game:itemUsed", ({ fromTeam, itemType, targetTeamId }) => {
-  if (fromTeam === state.teamId) return;
+  if (fromTeam === state.teamId) return; // you already got feedback locally when you clicked
   const fromT = state.teams.find((t) => t.id === fromTeam);
+  const fromName = fromT ? fromT.name : "ทีมอื่น";
+  const label = ITEM_LABELS[itemType] || itemType;
+
   if (targetTeamId === state.teamId) {
-    toast(`${fromT ? fromT.name : "ทีมอื่น"} ใช้ไอเทม "${ITEM_LABELS[itemType] || itemType}" ใส่ทีมคุณ!`);
+    // The target team gets a more specific, urgent toast from the
+    // game:cardsSwapped / game:teamFrozen handlers below — skip the
+    // generic one here so they don't overwrite each other.
+    return;
+  }
+  if (itemType === "peek") {
+    // Self-only item — announce it to everyone else for visibility even
+    // though nobody else is affected.
+    toast(`${fromName} ใช้ไอเทม "${label}"`);
+  } else {
+    const targetT = state.teams.find((t) => t.id === targetTeamId);
+    toast(`${fromName} ใช้ไอเทม "${label}" ใส่ ${targetT ? targetT.name : "ทีมอื่น"}`);
   }
 });
 
-// ---------------- Peek (self item) ----------------
-socket.on("game:peek", ({ teamId, cards, durationMs }) => {
+// ---------------- Peek (self item — reveals exactly ONE hidden card) ----------------
+socket.on("game:peek", ({ teamId, cardIndex, instrumentId, kind, durationMs }) => {
   if (teamId !== state.teamId) return;
   toast("ส่องไพ่! จำตำแหน่งไว้ให้ดี");
   SFX.item();
   const board = document.getElementById("board");
-  Array.from(board.children).forEach((el, idx) => {
-    const realCard = state.board[idx];
-    if (!realCard || realCard.state !== "hidden") return;
-    const peekInfo = cards[idx];
-    if (!peekInfo) return;
-    el.classList.add("flipped", "peek");
-    const c = cardContent(peekInfo);
-    el.querySelector(".card-front").innerHTML = `<div class="icon-wrap" style="color:${c.color}">${c.icon}</div><div class="card-text">${c.text}</div><div class="label">${c.sub}</div>`;
-  });
+  const el = board.children[cardIndex];
+  const realCard = state.board[cardIndex];
+  if (!el || !realCard || realCard.state !== "hidden") return;
+  el.classList.add("flipped", "peek");
+  const c = cardContent({ instrumentId, kind });
+  el.querySelector(".card-front").innerHTML = `<div class="icon-wrap" style="color:${c.color}">${c.icon}</div><div class="card-text">${c.text}</div><div class="label">${c.sub}</div>`;
   setTimeout(renderBoard, durationMs);
 });
 
 // ---------------- Freeze effect ----------------
-socket.on("game:teamFrozen", ({ teamId, until, durationMs }) => {
+socket.on("game:teamFrozen", ({ teamId, until, durationMs, fromTeam }) => {
   if (teamId !== state.teamId) return;
   state.frozenUntil = until;
   SFX.freeze();
-  playFreezeEffect(durationMs, "ถูกแช่แข็ง! รอสักครู่...");
+  const fromT = state.teams.find((t) => t.id === fromTeam);
+  playFreezeEffect(durationMs, `ถูกแช่แข็งโดย ${fromT ? fromT.name : "ทีมอื่น"}! รอสักครู่...`);
   renderBoard();
   setTimeout(renderBoard, durationMs + 60);
 });
@@ -582,27 +712,3 @@ socket.on("client:kicked", () => {
   toast("คุณถูกนำออกจากห้องโดยหัวห้อง");
   setTimeout(() => window.location.reload(), 1500);
 });
-
-// ---------------- Instrument lookup (mirrors server.js INSTRUMENTS) ----------------
-const INSTRUMENTS_BY_ID = {
-  drum_kit: { th: "กลองชุด", category: "percussion" },
-  maracas: { th: "มาริมบา", category: "percussion" },
-  snare: { th: "สแนร์", category: "percussion" },
-  bassdrum: { th: "เบสดรัม", category: "percussion" },
-  xylophone: { th: "ระนาดเอก", category: "percussion" },
-  cymbal: { th: "ฉาบ", category: "percussion" },
-  guitar: { th: "กีตาร์", category: "strings" },
-  violin: { th: "ไวโอลิน", category: "strings" },
-  harp: { th: "ฮาร์ป", category: "strings" },
-  cello: { th: "เชลโล", category: "strings" },
-  trumpet: { th: "ทรัมเป็ต", category: "brass" },
-  frenchoen: { th: "เฟรนช์ฮอร์น", category: "brass" },
-  trombone: { th: "ทรอมโบน", category: "brass" },
-  saxophone: { th: "แซกโซโฟน", category: "woodwind" },
-  clarinet: { th: "คลาริเน็ต", category: "woodwind" },
-  flute: { th: "ฟลุต", category: "woodwind" },
-  piano: { th: "เปียโน", category: "keyboard" },
-  melodion: { th: "เมโลเดียน", category: "keyboard" },
-  keyboard: { th: "คีย์บอร์ด", category: "keyboard" },
-  organ: { th: "ออร์แกน", category: "keyboard" },
-};
