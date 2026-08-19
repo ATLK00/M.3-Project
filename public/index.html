@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>จับคู่เครื่องดนตรี — ผู้เล่น</title>
+<link rel="stylesheet" href="style.css" />
+
+<!-- PWA / Add to Home Screen -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#1b1a3a" />
+<link rel="icon" href="icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="จับคู่ดนตรี" />
+</head>
+<body>
+
+<div id="freeze-overlay" class="freeze-overlay hidden"></div>
+<div id="toast" class="toast"></div>
+<div id="rotate-prompt" class="rotate-prompt">
+  <div class="rotate-icon" id="rotate-icon"></div>
+  <h2>หมุนจอเป็นแนวนอน</h2>
+  <p>เกมนี้ออกแบบมาให้เล่นแนวนอน หมุนมือถือแล้วเล่นต่อได้เลย</p>
+</div>
+
+<!-- ============ 1. JOIN WITH PIN ============ -->
+<section id="screen-join" class="screen">
+  <div class="brand">จับคู่เครื่องดนตรี</div>
+  <div class="glass-card">
+    <h1 class="title-xl">ใส่รหัส PIN</h1>
+    <p class="subtitle">ขอรหัส 6 หลักจากคุณครูหน้าจอหลัก</p>
+    <input id="input-pin" class="input pin-input" inputmode="numeric" maxlength="6" placeholder="000000" />
+    <button id="btn-join" class="btn btn-primary btn-block">เข้าห้อง</button>
+    <p id="join-error" class="small-note" style="color:#e23a5a;"></p>
+    <a href="host.html" class="host-shortcut-link">เป็นหัวห้อง? สร้างห้องใหม่ที่นี่</a>
+  </div>
+</section>
+
+<!-- ============ 2. NAME ============ -->
+<section id="screen-name" class="screen hidden">
+  <button class="back-btn"></button>
+  <div class="glass-card">
+    <h1 class="title-xl">ชื่อของคุณ</h1>
+    <p class="subtitle">ใส่ชื่อเล่นที่เพื่อนในทีมจำได้</p>
+    <input id="input-name" class="input" maxlength="20" placeholder="เช่น น้องมิว" />
+    <button id="btn-name" class="btn btn-primary btn-block">ถัดไป</button>
+  </div>
+</section>
+
+<!-- ============ 3. CHOOSE TEAM (classroom desks) ============ -->
+<section id="screen-team" class="screen hidden">
+  <button class="back-btn"></button>
+  <div class="game-shell">
+    <h1 class="title-xl">เลือกโต๊ะของคุณ</h1>
+    <div class="iso-floor">
+      <div id="team-grid" class="desk-grid"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. CHOOSE ROLE ============ -->
+<section id="screen-role" class="screen hidden">
+  <button class="back-btn"></button>
+  <div class="glass-card">
+    <h1 class="title-xl">เลือกบทบาท</h1>
+    <p class="subtitle">แต่ละทีมมีคนเปิดไพ่ 1 คน และคนใช้ไอเทม 1 คน ที่เหลือเป็นคนกดยืนยัน</p>
+    <div class="choice-grid">
+      <button class="choice-card" data-role="opener">
+        <span class="role-icon"></span>
+        <b>คนเปิดไพ่</b>
+        <span class="count">มีได้ 1 คน</span>
+      </button>
+      <button class="choice-card" data-role="item">
+        <span class="role-icon"></span>
+        <b>คนใช้ไอเทม</b>
+        <span class="count">มีได้ 1 คน</span>
+      </button>
+      <button class="choice-card selected" data-role="confirmer" style="grid-column: span 2;">
+        <span class="role-icon"></span>
+        <b>คนกดยืนยัน</b>
+        <span class="count">มีได้หลายคน</span>
+      </button>
+    </div>
+    <p id="role-error" class="small-note" style="color:#e23a5a;"></p>
+  </div>
+</section>
+
+<!-- ============ 5. WAITING FOR HOST (your desk, teammates as tokens) ============ -->
+<section id="screen-waiting" class="screen hidden">
+  <button class="back-btn"></button>
+  <div class="game-shell" style="align-items:center;">
+    <h1 class="title-xl" id="waiting-team-name">ทีมของคุณ</h1>
+    <div class="my-desk-wrap">
+      <div class="my-desk-diamond-wrap">
+        <div class="my-desk-diamond" id="my-desk-diamond"></div>
+        <div class="teammate-tokens" id="teammate-tokens"></div>
+      </div>
+      <div class="waiting-pulse"></div>
+      <p class="subtitle">รอหัวห้องกดเริ่มเกม…</p>
+      <p id="waiting-summary" class="small-note"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5b. LOADING GATE (waits for instrument data before showing the board) ============ -->
+<section id="screen-loading" class="screen hidden">
+  <div class="glass-card center-text">
+    <div class="waiting-pulse"></div>
+    <h1 class="title-xl">กำลังโหลดข้อมูลเกม…</h1>
+    <p class="subtitle">กำลังเตรียมชุดเครื่องดนตรีและสุ่มไพ่ให้เรียบร้อยก่อนเริ่มเล่น</p>
+  </div>
+</section>
+
+<!-- ============ 6. GAME ============ -->
+<section id="screen-game" class="screen hidden">
+  <button class="back-btn"></button>
+  <div class="game-shell">
+    <div class="hud">
+      <div class="team-name"><span id="hud-team-dot" class="team-dot"></span><span id="hud-team-name"></span></div>
+      <div class="timer" id="hud-timer">05:00</div>
+      <div class="progress" id="hud-progress">คู่ที่จับได้ 0/6</div>
+    </div>
+
+    <div class="role-banner">บทบาทของคุณ: <b id="role-label">—</b></div>
+
+    <div id="board" class="board"></div>
+
+    <div id="item-panel" class="item-panel hidden">
+      <h4>ไอเทม</h4>
+      <p class="small-note">โทเค็นของทีม: <b id="token-count">0</b> (จับคู่ถูก 1 ครั้ง = 1 โทเค็น)</p>
+      <div class="target-select" id="target-select"></div>
+      <div class="item-buttons">
+        <button id="btn-item-swap" class="item-btn swap"></button>
+        <button id="btn-item-freeze" class="item-btn freeze"></button>
+        <button id="btn-item-peek" class="item-btn peek"></button>
+      </div>
+      <div class="cooldown-bar"><div id="cooldown-fill"></div></div>
+      <p id="item-status" class="small-note">พร้อมใช้งาน</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7. VOTE POPUP (confirmer only) ============ -->
+<div id="vote-overlay" class="vote-overlay hidden">
+  <div class="vote-card">
+    <h3>คนเปิดไพ่เลือกไพ่ 2 ใบนี้ ยืนยันไหม?</h3>
+    <div class="vote-pair" id="vote-pair"></div>
+    <div class="vote-actions">
+      <button id="btn-vote-no" class="btn btn-secondary btn-block">ยกเลิก</button>
+      <button id="btn-vote-yes" class="btn btn-primary btn-block">ยืนยัน</button>
+    </div>
+    <p class="vote-progress" id="vote-progress"></p>
+  </div>
+</div>
+
+<!-- ============ 8. RESULTS ============ -->
+<section id="screen-results" class="screen hidden">
+  <button class="back-btn"></button>
+  <div class="glass-card wide">
+    <h1 class="title-xl">สรุปผล</h1>
+    <div id="result-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button id="btn-play-again" class="btn btn-secondary btn-block">ออกจากห้อง / เล่นใหม่</button>
+  </div>
+</section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="icons.js"></script>
+<script src="faces.js"></script>
+<script src="table.js"></script>
+<script src="sound.js"></script>
+<script src="client.js"></script>
+<script>
+  document.getElementById("rotate-icon").innerHTML = iconHtml("rotateDevice");
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+  // Best-effort real orientation lock — only actually works in a few
+  // contexts (installed PWA / fullscreen on Android Chrome). The CSS
+  // rotate-prompt above is what makes this reliable everywhere else.
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock("landscape").catch(() => {});
+    }
+  } catch (e) {}
+</script>
+</body>
+</html>
